@@ -1,0 +1,22 @@
+{
+  "name": "jinsong",
+  "version": "0.1.0",
+  "description": "Agent experience quality metrics — local CLI",
+  "type": "module",
+  "bin": {
+    "jinsong": "./dist/cli.cjs"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "typescript": "^5.7.0",
+    "tsup": "^8.3.0"
+  }
+}

@@ -1,0 +1,315 @@
+[
+  {
+    "event_id": "evt-001",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:00.000Z",
+    "event_type": "session_start",
+    "payload": {
+      "agent_name": "Claude Code",
+      "agent_version": "1.8.0",
+      "agent_framework": "Anthropic Agent SDK",
+      "model_provider": "Anthropic",
+      "model_id": "claude-opus-4-20250514",
+      "interface_type": "CLI",
+      "session_mode": "multi_turn_interactive"
+    }
+  },
+  {
+    "event_id": "evt-002",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:00.300Z",
+    "event_type": "prompt_submit",
+    "payload": {
+      "prompt_hash": "a3f2b891c4e7d6...",
+      "turn_number": 1,
+      "token_count": 85,
+      "task_category": "debugging",
+      "complexity_tier": "moderate"
+    }
+  },
+  {
+    "event_id": "evt-003",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:01.500Z",
+    "event_type": "first_token",
+    "payload": {
+      "latency_ms": 1200
+    }
+  },
+  {
+    "event_id": "evt-004",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:03.200Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 45,
+      "chunk_type": "text",
+      "cumulative_tokens": 45,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-005",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:04.000Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-001",
+      "tool_name": "Read",
+      "tool_provider": "built-in",
+      "tool_category": "file_system",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-006",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:05.800Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-001",
+      "tool_name": "Read",
+      "status": "success",
+      "duration_ms": 1800
+    }
+  },
+  {
+    "event_id": "evt-007",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:07.500Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 120,
+      "chunk_type": "code",
+      "cumulative_tokens": 165,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-008",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:08.200Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-002",
+      "tool_name": "Bash",
+      "tool_provider": "built-in",
+      "tool_category": "execution",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-009",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:16.500Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-002",
+      "tool_name": "Bash",
+      "status": "failure",
+      "duration_ms": 8300,
+      "error_message": "Test suite failed: 2 tests failing"
+    }
+  },
+  {
+    "event_id": "evt-010",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:17.000Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 60,
+      "chunk_type": "text",
+      "cumulative_tokens": 225,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-011",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:18.000Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-003",
+      "tool_name": "Edit",
+      "tool_provider": "built-in",
+      "tool_category": "file_system",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-012",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:19.500Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-003",
+      "tool_name": "Edit",
+      "status": "success",
+      "duration_ms": 1500
+    }
+  },
+  {
+    "event_id": "evt-013",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:20.500Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-004",
+      "tool_name": "Bash",
+      "tool_provider": "built-in",
+      "tool_category": "execution",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-014",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:28.200Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-004",
+      "tool_name": "Bash",
+      "status": "success",
+      "duration_ms": 7700
+    }
+  },
+  {
+    "event_id": "evt-015",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:30.000Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 95,
+      "chunk_type": "text",
+      "cumulative_tokens": 320,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-016",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:31.500Z",
+    "event_type": "user_correction",
+    "payload": {
+      "turn_number": 1,
+      "correction_type": "refine"
+    }
+  },
+  {
+    "event_id": "evt-017",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:31.500Z",
+    "event_type": "prompt_submit",
+    "payload": {
+      "prompt_hash": "b7c4e912d5f8a3...",
+      "turn_number": 2,
+      "token_count": 52
+    }
+  },
+  {
+    "event_id": "evt-018",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:32.800Z",
+    "event_type": "first_token",
+    "payload": {
+      "latency_ms": 1300
+    }
+  },
+  {
+    "event_id": "evt-019",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:34.500Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 80,
+      "chunk_type": "code",
+      "cumulative_tokens": 80,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-020",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:35.000Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-005",
+      "tool_name": "Edit",
+      "tool_provider": "built-in",
+      "tool_category": "file_system",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-021",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:36.200Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-005",
+      "tool_name": "Edit",
+      "status": "success",
+      "duration_ms": 1200
+    }
+  },
+  {
+    "event_id": "evt-022",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:37.500Z",
+    "event_type": "tool_call_start",
+    "payload": {
+      "tool_call_id": "tc-006",
+      "tool_name": "Bash",
+      "tool_provider": "built-in",
+      "tool_category": "execution",
+      "stall_reason": "tool_call"
+    }
+  },
+  {
+    "event_id": "evt-023",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:44.800Z",
+    "event_type": "tool_call_end",
+    "payload": {
+      "tool_call_id": "tc-006",
+      "tool_name": "Bash",
+      "status": "success",
+      "duration_ms": 7300
+    }
+  },
+  {
+    "event_id": "evt-024",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:46.500Z",
+    "event_type": "output_chunk",
+    "payload": {
+      "token_count": 150,
+      "chunk_type": "text",
+      "cumulative_tokens": 230,
+      "is_valid": true
+    }
+  },
+  {
+    "event_id": "evt-025",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:48.000Z",
+    "event_type": "task_complete",
+    "payload": {
+      "completion_type": "full",
+      "output_token_count": 550
+    }
+  },
+  {
+    "event_id": "evt-026",
+    "session_id": "sess-demo-001",
+    "timestamp": "2026-04-15T10:00:48.200Z",
+    "event_type": "session_end",
+    "payload": {
+      "end_reason": "completed",
+      "total_duration_ms": 48200,
+      "total_tokens_in": 137,
+      "total_tokens_out": 550,
+      "total_tool_calls": 6
+    }
+  }
+]
