@@ -1,6 +1,6 @@
 # Measuring Agent Experience: A Quality Metrics Framework for AI Agents
 
-**Abstract.** AI agents are rapidly becoming the primary interface through which knowledge workers interact with large language models --- yet the relationship between agent experience quality and user adoption remains unquantified. There is no shared vocabulary for what "quality" even means when a human collaborates with an AI agent across a multi-turn, tool-using session. We propose the Agent Experience (AX) framework, a formal metrics standard for measuring the quality of AI agent interactions. The framework comprises four contributions: (1) an agent session state machine with six states that captures the full lifecycle of an agent interaction, directly paralleling the player state machine that enabled video quality measurement; (2) a taxonomy of 29 metrics organized across five experience phases --- Initiation, Progress, Interaction, Delivery, and Resolution; (3) an 11-dimension diagnostic system that enables fault isolation and cohort comparison; and (4) the Agent Experience Score (AXS), a gated multiplicative-additive composite score that compresses multi-dimensional quality into a single actionable number. We ground every metric in observable events at the agent-framework boundary, classify each by observability level, and demonstrate the framework through worked examples spanning coding agents, customer support agents, and autonomous workflows. To the best of our knowledge, this is the first experience-centric metrics standard for AI agents. We release the framework as an open specification to serve as a foundation for empirical validation.
+**Abstract.** AI agents --- software systems that use large language models to reason, plan, and act on behalf of users --- are rapidly becoming the primary interface through which knowledge workers interact with AI. Yet the relationship between agent experience quality and user adoption remains unquantified. There is no shared vocabulary for what "quality" even means when a human collaborates with an AI agent across a multi-turn, tool-using session. We propose the Agent Experience (AX) framework, a two-layer metrics standard for measuring the quality of AI agent interactions. The framework comprises three contributions: (1) an agent session state machine with six states that captures the full lifecycle of an agent interaction, directly paralleling the player state machine that enabled video quality measurement; (2) a two-layer metrics architecture that separates *operational metrics* (objective, per-event and per-session measurements for engineering teams) from *experience metrics* organized into five orthogonal quality pillars --- Responsiveness, Reliability, Autonomy, Correctness, and Completion --- each answering a distinct user question; and (3) a content-type system that modulates which pillars matter most for different interaction patterns. We ground every metric in observable events at the agent-framework boundary, classify each by observability level, and demonstrate the framework through three illustrative scenarios. Cross-domain analysis of seven established quality frameworks --- from video streaming to web performance to voice telephony --- validates both the pillar structure and the two-layer approach. To the best of our knowledge, this is the first experience-centric metrics standard for AI agents. We release the framework as an open specification to serve as a foundation for empirical validation.
 
 ---
 
@@ -21,69 +21,87 @@ The situation is analogous to video streaming circa 2010. Online video was enorm
 
 We argue that AI agents are at the same inflection point. The agent is the new player. The model is the new CDN. Tools are the new APIs. The user experience is the new engagement metric. What is missing is the measurement framework.
 
+The core insight of this paper is a two-layer metrics architecture. *Operational metrics* tell you what changed: tokens per session went up 40%, tool call duration spiked, error rate doubled. *Experience metrics* tell you whether users care: responsiveness degraded, reliability dropped, task completion fell. The first layer serves engineers detecting regressions. The second layer serves product teams and executives assessing quality. The bridge between them --- deriving experience assessments from operational measurements --- is what transforms raw telemetry into actionable quality intelligence.
+
 In this paper, we present the Agent Experience (AX) framework. Our contributions are:
 
 1. **An agent session state machine** with six states (Starting, Working, Stalled, Waiting, Failed, Ended) that captures the full lifecycle of an agent interaction. The state machine is a strict superset of Zhang et al.'s player state machine, extended with a Waiting state to model the bidirectional interaction that distinguishes agents from passive media.
 
-2. **A metrics taxonomy** of 29 quality metrics organized across five experience phases (Initiation, Progress, Interaction, Delivery, Resolution). Every metric is formally derived from states or transitions in the state machine, grounding the taxonomy in an observable, principled model rather than an ad hoc list.
+2. **A two-layer metrics architecture** that separates operational metrics (session-level and per-event measurements instrumentable by any agent framework) from experience metrics organized into five orthogonal quality pillars --- Responsiveness, Reliability, Autonomy, Correctness, and Completion --- each answering a distinct user question and grounded in cross-domain research across seven QoE domains.
 
-3. **A diagnostic dimension system** of 11 dimensions (5 core, 3 extended, 3 derived) that enables slicing every metric by agent, model, interface, task type, session type, tool, context, user segment, content type, quality regime, and error class.
+3. **A content-type system** with four agent interaction patterns (Quick Answer, Guided Task, Deep Session, Autonomous Workflow) that modulates which experience pillars matter most, following Zhang's finding that content type moderates the quality-engagement relationship.
 
-4. **The Agent Experience Score (AXS)**, a gated multiplicative-additive composite that compresses the 29 metrics into a single 0--100 number, with content-type-aware weight adaptation and an open, published formula.
-
-The rest of this paper is organized as follows. Section 2 surveys related work and identifies the measurement gap. Section 3 presents the agent session state machine. Section 4 defines the metrics taxonomy. Section 5 introduces the diagnostic dimension system. Section 6 formalizes the AXS composite score. Section 7 walks through three illustrative examples. Section 8 discusses predictions, limitations, and future work. Section 9 concludes.
+The rest of this paper is organized as follows. Section 2 surveys related work across seven quality domains and identifies the measurement gap. Section 3 presents the agent session state machine. Section 4 defines the operational metrics layer. Section 5 introduces the five experience pillars. Section 6 describes the content-type system. Section 7 covers diagnostic dimensions. Section 8 walks through three illustrative examples. Section 9 discusses predictions, limitations, and future work. Section 10 concludes.
 
 ---
 
-## 2. Background and Related Work
+## 2. Related Work
 
-The landscape of AI agent monitoring is active but fragmented. We organize prior work into five categories and identify the gap that motivates our framework.
+The landscape of AI agent monitoring is active but fragmented. We organize prior work into five categories, survey six adjacent quality domains for structural precedent, and identify the gap that motivates our framework.
 
-### 2.1 LLM Observability Tools
+### 2.1 Video QoE: The Model We Adapt
 
-LangSmith [4], Langfuse [5], and similar platforms provide trace-level observability for LLM applications. LangSmith records trace trees (parent/child spans for chains, agents, tools, retrievers), per-step latency, token counts, cost estimates, and evaluation scores. Langfuse offers comparable functionality with open-source self-hosting and user-level session grouping. Both position themselves around developer workflows: "Debug, test, evaluate, and monitor LLM applications" (LangSmith); "Open-source LLM engineering platform" (Langfuse).
+The work most directly relevant to ours comes from video streaming. Zhang et al.'s SIGCOMM 2011 study [3] used data from Conviva's measurement platform (~40 million video views across 200+ content providers) to establish that specific, formally defined quality metrics --- join time, buffering ratio, average bitrate, rebuffering frequency --- causally impact viewer engagement. The study's power derived from three elements: (a) a player state machine that made "quality" concrete and measurable, (b) metrics derived from observable states rather than ad hoc intuitions, and (c) "money numbers" that translated quality changes to business outcomes ("1% more buffering costs 3 minutes of viewing time"). The work won the SIGCOMM Test of Time Award in 2022.
 
-These tools are overwhelmingly implementation-focused. They know what the *system* did --- which tools were called, how many tokens were consumed, what the eval score was --- but not what the *user experienced*. Neither tool tracks time to first response as a user-experience metric, perceived throughput of the output stream, abandon-before-response events, task completion from the user's perspective, or any measure of user effort. Session grouping in Langfuse is the closest feature to user-journey tracking, but it carries no concept of session quality or experiential outcome.
+Conviva subsequently operationalized these metrics at scale, developing the Streaming Performance Index (SPI) --- a composite score aggregating multiple QoE metrics into a single assessment. The SPI demonstrated that even the strongest individual-metric framework eventually needs a composite for executive communication. ITU-T P.1203 extended the approach to standardized, multi-mode quality estimation with formal subjective validation, using modular sub-recommendations for video, audio, and session-integrated quality scores. Netflix developed VMAF to address the gap between bitrate-as-proxy and actual perceptual quality, winning a Technology and Engineering Emmy Award. Mux distilled video QoE into four categories (playback failures, startup time, rebuffering, video quality) that map to a temporal lifecycle: Can it start? How fast? Does it interrupt? Is the output good?
 
-### 2.2 APM with AI Extensions
+We adapt Zhang's framework to the agent domain. The adaptation is non-trivial. Agent sessions are bidirectional (requiring a new Waiting state), involve tool use as observable substates (enriching the Stalled state), include error recovery loops (demanding careful terminal-state design), and produce task outcomes rather than continuous streams (motivating entirely new quality dimensions around autonomy, correctness, and completion).
 
-Datadog LLM Observability [6] and New Relic AI Monitoring [7] extend traditional Application Performance Monitoring to cover LLM calls. Datadog bolts LLM monitoring onto its existing APM paradigm, correlating LLM call traces with infrastructure metrics (CPU, memory, network). New Relic similarly extends its distributed tracing to cover LLM transactions, adding hallucination detection and model comparison.
+### 2.2 Web Performance: The Adoption Model We Follow
 
-The mental model in both cases remains "service health," not "user health." Datadog can report the p99 latency of LLM API calls, but not whether users perceived that latency as acceptable. New Relic's "end-to-end" monitoring spans from API call to infrastructure --- not from user intent to user satisfaction. Neither tool introduces user-facing metrics, session-level experience concepts, or effort measurement. The APM heritage is both their strength (enterprise credibility, correlation with infrastructure) and their limitation (the wrong unit of analysis for experience quality).
+Google's Core Web Vitals [14] organize web performance around three user-centric pillars: Loading (Largest Contentful Paint), Interactivity (Interaction to Next Paint), and Visual Stability (Cumulative Layout Shift). Each pillar answers a user question: "Is it loading?" "Can I use it?" "Is it stable?"
 
-### 2.3 AI Gateway and Proxy Tools
+Core Web Vitals succeeded for five reasons that inform our design: (1) a small number of core metrics (three) that are easy to remember and communicate; (2) user-centric framing with plain-language questions; (3) a tie to business outcomes via Google search ranking; (4) field measurement from real users rather than lab simulations; and (5) a two-tier structure separating core experiential metrics (LCP, INP, CLS) from diagnostic supporting metrics (TTFB, FCP, TBT). The diagnostic metrics explain *why* a core metric is bad; the core metrics capture *what the user feels*. This two-tier separation is a powerful organizing principle that we adopt as our two-layer architecture.
 
-Helicone [8] and Portkey [9] operate as LLM proxies, providing request/response logging, latency measurement, token and cost tracking, rate limit monitoring, and (in Portkey's case) multi-provider routing and failover metrics. These tools are valuable for cost management and infrastructure reliability, but they operate below the application layer entirely. Helicone sees individual LLM API calls in isolation; it cannot correlate them into tasks, sessions, or user outcomes. Portkey optimizes the plumbing; it has no concept of what a "user" is, let alone what they experience.
+The evolution of Core Web Vitals also provides a cautionary lesson: First Input Delay (FID) was replaced by Interaction to Next Paint (INP) in March 2024 because FID only measured the *first* interaction and only the *input delay* phase. Frameworks must be designed to evolve.
 
-### 2.4 Agent-Specific Monitoring
+### 2.3 Other QoE Domains: Cross-Domain Validation
 
-AgentOps [10] is the closest existing tool to experience-level thinking. It records entire agent sessions as replayable timelines, tracking tool call sequences, LLM calls with token/cost data, error rates, session duration, and multi-agent coordination. AgentOps introduces session-level awareness --- a significant advance over per-call observability.
+We surveyed five additional quality domains to validate our framework structure.
 
-However, AgentOps remains agent-centric rather than user-centric. Its metrics describe what the agent *did* (tools called, errors encountered), not what the user *felt* (wait frustration, steering effort, task achievement). It provides no concept of user satisfaction, no experiential metrics like stall perception or interaction overhead, and no composite quality score. It is, in their own words, a "session replay for AI agents" --- an agent flight recorder, not a user experience monitor.
+**Voice and Telephony (MOS, E-model).** ITU-T P.800 defines the Mean Opinion Score (MOS), a 5-point subjective scale that became the universal quality metric for voice. The E-model (ITU-T G.107) bridges objective and subjective measurement by predicting MOS from measurable network parameters using a subtractive decomposition: R = Ro - Is - Id - Ie + A. The E-model's MECE impairment categories (noise, simultaneous distortion, delay, equipment, advantage) demonstrate that a small number of orthogonal dimensions can capture a complex quality space. Its objective-input, subjective-output bridge --- computing user-perceivable quality from measurable system parameters --- is precisely the relationship between our operational and experience layers.
 
-### 2.5 Academic Evaluation Benchmarks
+**Application Performance (Apdex, SRE Golden Signals, RAIL).** Apdex classifies every transaction into Satisfied, Tolerating, or Frustrated zones based on response time. Its strength is simplicity; its weakness is single-dimension reductionism. The SRE Golden Signals (latency, traffic, errors, saturation) represent the *operational* side of quality --- system health, not user experience. Google's RAIL model organizes web performance around user activities (Response, Animation, Idle, Load) with thresholds grounded in perception research. The Golden Signals measure system health; experience metrics measure user perception. Operational metrics bridge the two --- and this is exactly the role of our Layer 1.
 
-The academic community has produced numerous agent evaluation frameworks: SWE-bench [11] for coding agents, WebArena [12] for web-browsing agents, and various task-specific benchmarks. Arize/Phoenix [13] bridges academia and industry with embedding drift detection, retrieval metrics for RAG systems, and evaluation metrics including hallucination and toxicity detection.
+**Conversational AI and Chatbot Quality.** The chatbot industry has converged on operational metrics (containment rate, CSAT, resolution rate, first contact resolution) without a formal QoE framework. Coppola et al.'s multivocal literature review [21] identified 123 quality attributes across four macro-categories (Relational, Conversational, User-Centered, Quantitative) from 118 sources. The fragmentation mirrors agent monitoring today: each vendor measures slightly different things, no state machine ties them together, and there is no composite score. This is the same pre-Zhang state that video streaming occupied.
 
-These benchmarks measure *task-specific capability* --- can the agent solve this problem? --- not *experience quality* --- how did the user feel while the agent worked on it? A model that achieves 95% on SWE-bench may still deliver a poor experience if it takes 45 seconds to start, stalls repeatedly during tool calls, and requires three steering corrections before producing the right fix. Capability and experience are related but distinct dimensions.
+**HCI (ISO 9241-11, Nielsen's heuristics, NASA-TLX).** ISO 9241-11 defines usability through three pillars: effectiveness, efficiency, and satisfaction. Nielsen's ten usability heuristics include "visibility of system status" (our Responsiveness pillar), "user control and freedom" (our Autonomy pillar), and "help users recover from errors" (our Reliability pillar). NASA-TLX [22] separates task demands (mental, physical, temporal) from interaction experience (effort, performance, frustration) --- a demand/interaction split that parallels our operational/experience separation.
 
-### 2.6 Video Quality of Experience Literature
+**Gaming QoE.** Gaming research distinguishes KPIs (network-level: bandwidth, latency, packet loss) from KQIs (service-level: input lag, freezes, perceived frame rate). This KPI-to-KQI mapping is exactly the operational-to-experiential bridge our framework provides. A CHI 2023 study established that frame time *consistency* matters more than average frame rate --- a steady 45fps feels better than a fluctuating 30-60fps with the same average. This validates our emphasis on stall predictability and progress consistency over raw throughput.
 
-The work most directly relevant to ours comes from a different domain entirely. Zhang et al.'s SIGCOMM 2011 study [3] used data from Conviva's measurement platform (~40 million video views across 200+ content providers) to establish that specific, formally defined quality metrics --- join time, buffering ratio, average bitrate, rebuffering frequency --- causally impact viewer engagement. The study's power derived from three elements: (a) a player state machine that made "quality" concrete and measurable, (b) metrics derived from observable states rather than ad hoc intuitions, and (c) "money numbers" that translated quality changes to business outcomes ("1% more buffering costs 3 minutes of viewing time").
+### 2.4 Agent Monitoring Tools
 
-The Conviva platform subsequently operationalized these metrics at scale, with dimensional slicing (ISP, device, geography, CDN, content type) as its core value proposition. The result was a transformation in how the streaming industry measures quality: from server-side response times to user-perceived experience.
+Current agent monitoring tools fall into four categories, each with a specific blind spot:
 
-We adapt Zhang's framework to the agent domain. The adaptation is non-trivial. Agent sessions are bidirectional (requiring a new Waiting state), involve tool use as observable substates (enriching the Stalled state), include error recovery loops (demanding careful terminal-state design), and produce task outcomes rather than continuous streams (motivating entirely new Delivery and Resolution metric phases). The agent state machine is a strict superset of the video player state machine; removing the Waiting state and collapsing the stall-reason attribute recovers Zhang's model exactly. This is the right relationship: agents are interactive video.
+**LLM Observability (LangSmith, Langfuse).** These platforms provide trace-level observability: trace trees, per-step latency, token counts, cost estimates, and evaluation scores. They are implementation-focused --- they know what the *system* did but not what the *user experienced*. Neither tool tracks time to first response as a user-experience metric, stall perception, or any measure of user effort.
 
-### 2.7 The Gap
+**APM with AI Extensions (Datadog, New Relic).** Traditional Application Performance Monitoring extended to cover LLM calls. The mental model remains "service health," not "user health." Datadog can report the p99 latency of LLM API calls, but not whether users perceived that latency as acceptable.
 
-The linguistic pattern across the landscape is telling: every tool uses developer/engineering verbs (debug, monitor, evaluate, troubleshoot) with the *application* or *agent* as the object. Not a single tool positions itself around the *user's experience* of interacting with an AI agent.
+**AI Gateway and Proxy Tools (Helicone, Portkey).** LLM proxies providing request/response logging, latency, token and cost tracking. These tools operate below the application layer entirely --- they see individual LLM API calls in isolation and cannot correlate them into sessions or user outcomes.
 
-The gap is structural, not accidental. Three factors explain it:
+**Agent-Specific Monitoring (AgentOps).** AgentOps records entire agent sessions as replayable timelines --- the closest existing tool to experience-level thinking. However, it remains agent-centric rather than user-centric. Its metrics describe what the agent *did*, not what the user *felt*.
+
+### 2.5 The Gap
+
+The linguistic pattern across the landscape is telling: every tool uses developer/engineering verbs (debug, monitor, evaluate, troubleshoot) with the *application* or *agent* as the object. Not a single tool positions itself around the *user's experience* of interacting with an AI agent. The gap is structural:
 
 1. **Heritage bias.** Most tools evolved from APM, ML model monitoring, or developer tooling. Their mental models are "service health" or "model quality," not "user experience."
-2. **Instrumentation boundary.** Current tools instrument at the LLM API call level or agent framework level. Experience metrics require instrumentation at the *interaction boundary* --- where the human and the AI meet.
-3. **No established vocabulary.** Unlike web performance (which has Core Web Vitals [14], RAIL [15]) or voice quality (which has MOS [16]), there is no established vocabulary for AI agent experience metrics.
+2. **Instrumentation boundary.** Current tools instrument at the LLM API call level. Experience metrics require instrumentation at the *interaction boundary* --- where the human and the AI meet.
+3. **No established vocabulary.** Unlike web performance (Core Web Vitals), voice quality (MOS), or video streaming (buffering ratio, join time), there is no established vocabulary for AI agent experience quality.
+
+### 2.6 Cross-Domain Comparison
+
+Table 1 maps our five experience pillars to equivalent concepts across all seven domains, demonstrating that the pillar structure is not arbitrary but reflects recurring patterns in how quality is measured across interactive systems.
+
+| Pillar | Video QoE | Web (CWV) | Voice (E-model) | App Perf | Chatbot | HCI | Gaming |
+|--------|-----------|-----------|-----------------|----------|---------|-----|--------|
+| **Responsiveness** | Join Time | LCP, INP | Delay (Id) | Apdex T, RAIL Response | First response time | Nielsen #1: Visibility | Input latency |
+| **Reliability** | Buffering Ratio, VSF | (Load failure) | Ie (equipment) | Error rate, Golden Signal: Errors | Escalation rate | Nielsen #9: Error recovery | Freeze rate, frame drops |
+| **Autonomy** | *(N/A --- passive)* | *(N/A)* | *(N/A)* | *(N/A)* | Containment rate | ISO Efficiency, NASA-TLX Effort | *(N/A)* |
+| **Correctness** | Bitrate, VMAF | (Correct rendering) | R-factor | *(Implicit)* | Resolution quality | ISO Effectiveness | Visual quality |
+| **Completion** | Session duration | Bounce rate | Call completion | *(Implicit)* | Resolution rate, FCR | Task completion rate | Session retention |
+
+**Table 1.** Cross-domain mapping of the five experience pillars. Autonomy is the pillar unique to agent interactions --- it has no parallel in passive media or non-interactive systems. This is the structural addition that adapts the Zhang model to interactive AI.
 
 To the best of our knowledge, this paper presents the first experience-centric metrics framework for AI agents --- a framework that asks not "how is my AI system performing?" but "how is the human experiencing this AI interaction?"
 
@@ -108,38 +126,38 @@ These differences motivate six primary states (versus Zhang's four).
 ### 3.2 The Agent State Machine
 
 ```
-                          ┌─────────────────────────────────────────────────┐
-                          │                                                 │
-                          │          ┌─────────────────────────────┐        │
-                          │          │                             │        │
-                          v          v                             │        │
-┌───────────┐  first    ┌──────────┐  resume   ┌─────────────┐   │        │
-│           │  output   │          │ <──────── │  Waiting     │   │        │
-│ Starting  │ ────────> │ Working  │ ────────> │  (on user)   │   │        │
-│           │           │          │  ask user  └─────────────┘   │        │
-└───────────┘           └──────────┘                              │        │
-     │                    │  │  ^  │                              │        │
-     │                    │  │  │  │  tool call returns /         │        │
-     │ fail /             │  │  │  │  retry succeeds             │        │
-     │ timeout /          │  │  │  └──────────────────┐          │        │
-     │ abandon            │  │  │                     │          │        │
-     v                    │  │  │  tool call  ┌────────────────┐ │        │
-┌───────────┐             │  │  └──────────── │  Stalled       │ │        │
-│           │             │  │                │  (tool/retry)  │─┘        │
-│ Failed    │             │  │  error/retry   └────────────────┘  error   │
-│           │             │  └──────────────>        ^            exceeds │
-└───────────┘             │                          │            retry   │
-     ^                    │       retry loop         │            budget  │
-     │                    │       (same error)  ─────┘                    │
-     │ unrecoverable      │                                              │
-     │ error              │  task done /                                  │
-     └────────────────────│  user stops                                  │
-                          v                                              │
-                   ┌──────────┐                                          │
-                   │          │ <─────────────────────────────────────────┘
-                   │ Ended    │
-                   │          │
-                   └──────────┘
+                          +---------------------------------------------------+
+                          |                                                     |
+                          |          +-------------------------------+          |
+                          |          |                               |          |
+                          v          v                               |          |
++-----------+  first    +----------+  resume   +-------------+      |          |
+|           |  output   |          | <-------- |  Waiting     |      |          |
+| Starting  | --------> | Working  | --------> |  (on user)   |      |          |
+|           |           |          |  ask user  +-------------+      |          |
++-----------+           +----------+                                 |          |
+     |                    |  |  ^  |                                 |          |
+     |                    |  |  |  |  tool call returns /            |          |
+     | fail /             |  |  |  |  retry succeeds                |          |
+     | timeout /          |  |  |  +----------------------+         |          |
+     | abandon            |  |  |                         |         |          |
+     v                    |  |  |  tool call  +------------------+  |          |
++-----------+             |  |  +------------ |  Stalled         |  |          |
+|           |             |  |                |  (tool/retry)    |--+          |
+| Failed    |             |  |  error/retry   +------------------+  error      |
+|           |             |  +--------------->        ^             exceeds    |
++-----------+             |                           |             retry      |
+     ^                    |       retry loop          |             budget     |
+     |                    |       (same error)  ------+                        |
+     | unrecoverable      |                                                    |
+     | error              |  task done /                                       |
+     +--------------------+  user stops                                        |
+                          v                                                    |
+                   +----------+                                                |
+                   |          | <----------------------------------------------+
+                   | Ended    |
+                   |          |
+                   +----------+
 ```
 
 **Figure 1.** The Agent Session State Machine. Six states capture the full lifecycle of an agent interaction. The machine extends Zhang et al.'s player state machine with a Waiting state for bidirectional interaction and enriched Stalled semantics for tool use and error recovery. Removing Waiting and collapsing stall reasons recovers the video player state machine exactly.
@@ -155,7 +173,7 @@ These differences motivate six primary states (versus Zhang's four).
 | **Failed** | Unrecoverable error: crash, auth failure, context overflow, retry budget exhausted, timeout | Terminal --- user must start new request | Error message rendered; or timeout with no output | Failed |
 | **Ended** | Task completed (agent signals done); OR user explicitly stops/cancels | Terminal | Completion signal; user stop action; final output rendered | Stopped |
 
-**Table 1.** State definitions for the Agent Session State Machine. Every state is defined by events observable at the client/framework boundary.
+**Table 2.** State definitions for the Agent Session State Machine. Every state is defined by events observable at the client/framework boundary.
 
 ### 3.4 Transition Table
 
@@ -174,7 +192,7 @@ These differences motivate six primary states (versus Zhang's four).
 | Waiting | Working | User provides input | `user_input_received` event; output resumes |
 | Waiting | Ended | User abandons or cancels | `user_cancel` or session timeout |
 
-**Table 2.** State transitions with triggers and observable events. Note: the Starting -> Ended transition (user cancel before output) is included in the table for completeness; in Figure 1 it is subsumed by the Starting -> Failed/Ended exit paths shown on the left side of the diagram.
+**Table 3.** State transitions with triggers and observable events.
 
 ### 3.5 Key Design Decisions
 
@@ -201,488 +219,256 @@ The agent state machine is a strict superset of Zhang's. This is the right relat
 
 ---
 
-## 4. Agent Experience Metrics
+## 4. Operational Metrics
 
-We define 29 metrics organized across five experience phases. Each phase corresponds to a question the user implicitly asks during an agent interaction. The five phases are:
+Operational metrics are the raw, objective measurements that agent vendors and engineering teams instrument, monitor, and put on dashboards. They answer "what happened?" --- not "did the user care?" They are the SRE Golden Signals of agent quality: latency, traffic, errors, and saturation measured at the agent interaction level.
 
-- **Initiation:** "I asked --- did it start?"
-- **Progress:** "It is working --- do I feel forward motion?"
-- **Interaction:** "It needs me --- is this smooth or disruptive?"
-- **Delivery:** "It produced output --- is it what I needed?"
-- **Resolution:** "Was it worth it?"
+The analogy to other domains is precise. SRE Golden Signals measure system health. Experience metrics measure user perception. Operational metrics bridge the two --- they are the objective inputs from which experience assessments are derived, just as the E-model computes subjective MOS from measurable network parameters, and Core Web Vitals derive user-centric scores from browser timing data.
 
-For each metric, we specify the name, type, unit, formal definition, state/transition mapping, observability level, and Zhang analogue. The observability classification (Section 4.7) determines what instrumentation is required to capture each metric.
+### 4.1 Session-Level Metrics
 
-### 4.1 Phase 1: Initiation
+These metrics summarize an entire agent session. They are what vendors put on dashboards to detect regressions: "After v2.1, tokens per session went up 40%."
 
-| # | Metric | Type | Unit | Definition | State Mapping | Zhang Analogue |
-|---|--------|------|------|------------|---------------|----------------|
-| 1.1 | **Time to First Response (TTFR)** | histogram | seconds | Wall-clock time from user prompt submission to first visible output token rendered to the user. | Duration of Starting state | Join Time |
-| 1.2 | **Start Failure Rate** | rate | % | Fraction of initiated sessions where the agent fails to produce any output (error, timeout, or crash before first token). | Starting -> Failed | Join Failure Rate |
-| 1.3 | **Pre-Response Abandonment Rate** | rate | % | Fraction of sessions where the user cancels or navigates away before the first output token. | Starting -> Ended (user cancel) | Abandonment Before Video Start |
-| 1.4 | **Start Retry Rate** | rate | % | Fraction of sessions where the framework auto-retried the initial request before first output (e.g., retry after 429 or model overload). | Internal to Starting state | *(new)* |
+| Metric | Unit | Definition | State Mapping |
+|--------|------|------------|---------------|
+| **Tokens per Session** | count | Total tokens consumed (input + output + reasoning) across all turns | Cross-session |
+| **Turns per Session** | count | Number of user-agent exchange cycles | Working episodes |
+| **Tool Calls per Session** | count | Number of external tool invocations | Working -> Stalled transitions (tool_call) |
+| **Duration per Session** | seconds | Wall-clock time from prompt submission to session end | Starting entry -> Ended/Failed entry |
+| **Errors per Session** | count | Number of error events (recoverable and fatal) | Error events across all states |
 
-### 4.2 Phase 2: Progress
+**Table 4.** Session-level operational metrics.
 
-| # | Metric | Type | Unit | Definition | State Mapping | Zhang Analogue |
-|---|--------|------|------|------------|---------------|----------------|
-| 2.1 | **Stall Ratio** | gauge | % | Fraction of active session time spent in the Stalled state: time_stalled / (time_working + time_stalled). The single most important progress metric. | Time in Stalled / (Working + Stalled) | Buffering Ratio |
-| 2.2 | **Stall Frequency** | counter | count/session | Number of Working -> Stalled transitions per session. | Working -> Stalled transitions | Rebuffering Frequency |
-| 2.3 | **Stall Duration Distribution** | histogram | seconds | Distribution (p50, p90, p95) of individual stall event durations. | Duration of each Stalled episode | Rebuffering Duration |
-| 2.4 | **Progress Cadence** | gauge | events/min | Rate of user-visible progress signals during Working state. | Within Working state | Bitrate |
-| 2.5 | **Perceived Throughput** | gauge | tokens/s | Rate of meaningful user-facing output delivery during Working, excluding tool-call metadata and internal reasoning tokens. | Within Working state | Video Bitrate |
-| 2.6 | **Output Fidelity Rate** | rate | % | Fraction of output chunks that are well-formed (valid syntax for code, valid markdown, no truncation artifacts). | Within Working state | Rendering Quality |
+### 4.2 Per-Event Metrics
 
-### 4.3 Phase 3: Interaction
+These metrics capture individual events within a session. They provide the granularity needed to diagnose *where* in a session quality breaks down.
 
-| # | Metric | Type | Unit | Definition | State Mapping | Zhang Analogue |
-|---|--------|------|------|------------|---------------|----------------|
-| 3.1 | **Interaction Frequency** | counter | count/session | Number of Working -> Waiting transitions per session. | Working -> Waiting | *(new)* |
-| 3.2 | **Wait Duration Distribution** | histogram | seconds | Distribution (p50, p90, p95) of time blocked in Waiting state per episode. | Duration of each Waiting episode | *(new)* |
-| 3.3 | **Resumption Latency** | histogram | seconds | Wall-clock time from user providing input to agent producing next visible output token. The "cold restart" cost after a Waiting pause. | Waiting -> Working transition | *(analogous to rebuffer-exit latency)* |
-| 3.4 | **Steering Event Count** | counter | count/session | Number of corrective signals from the user during Working (interrupt, redirect, "no, I meant..."). Does not cause a state transition. | Within Working state | *(new)* |
-| 3.5 | **Steering Recovery Time** | histogram | seconds | Time from a steering event to the agent producing output aligned with the correction. | Within Working state | *(new)* |
-| 3.6 | **Interaction Overhead Ratio** | gauge | % | Fraction of total session time consumed by interaction overhead: (Waiting time + Steering Recovery time) / Session Duration. | Cross-state | *(new)* |
+| Metric | Unit | Definition | State Mapping |
+|--------|------|------------|---------------|
+| **Time to First Token** | seconds | Wall-clock time from prompt submission to first visible output token | Duration of Starting state |
+| **Tokens per Turn** | count | Tokens consumed in a single user-agent exchange | Within Working episode |
+| **Tool Call Duration** | seconds | Wall-clock time from tool invocation to result return | Duration of individual Stalled (tool_call) episode |
+| **Tool Success Rate** | % | Fraction of tool calls that return successfully | Stalled -> Working vs. Stalled -> Failed |
+| **Retry Count** | count | Number of automatic retries per error event | Within Stalled (retry) episodes |
+| **Stall Duration** | seconds | Duration of each individual stall event | Duration of each Stalled episode |
+| **Output Speed** | tokens/s | Rate of visible output token delivery during active generation | Within Working state |
+| **Resume Speed** | seconds | Time from user input to next visible output token after a Waiting pause | Waiting -> Working transition |
 
-### 4.4 Phase 4: Delivery
+**Table 5.** Per-event operational metrics.
 
-| # | Metric | Type | Unit | Definition | State Mapping | Zhang Analogue |
-|---|--------|------|------|------------|---------------|----------------|
-| 4.1 | **Task Completion Rate** | rate | % | Fraction of sessions where the agent signals task completion and the user does not dispute it within a configurable post-completion window. | Working -> Ended (task_complete) | *(new)* |
-| 4.2 | **First-Attempt Success Rate** | rate | % | Fraction of completed sessions where the agent reached task completion without steering events or agent-initiated Waiting episodes. | Derived: Steering Count = 0 AND Interaction Freq = 0 AND task_complete | *(new)* |
-| 4.3 | **Delivery Quality Score** | gauge | 0--1 | Composite score evaluating correctness, completeness, and instruction adherence of final output. Requires an evaluation judge (human or LLM-as-judge). | Post-Ended evaluation | Perceptual Quality (MOS) |
-| 4.4 | **Rework Rate** | rate | % | Fraction of sessions followed by a closely related prompt within a configurable time window, indicating the output was insufficient. | Post-Ended: related re-submission | *(new)* |
-| 4.5 | **Partial Delivery Rate** | rate | % | Fraction of sessions where the agent completes some but not all sub-goals. | Working -> Ended (partial) | *(new)* |
-| 4.6 | **Token Efficiency Ratio** | gauge | ratio | Ratio of visible output tokens to total tokens consumed (input + output + tool-call overhead). | Cross-session | *(new --- no per-stream cost in video)* |
-
-### 4.5 Phase 5: Resolution
-
-| # | Metric | Type | Unit | Definition | State Mapping | Zhang Analogue |
-|---|--------|------|------|------------|---------------|----------------|
-| 5.1 | **Time to Task Completion (TTTC)** | histogram | seconds | Wall-clock time from prompt submission to task completion signal. Excludes post-completion idle time. | Starting entry -> Ended (task_complete) | Session Duration (tighter) |
-| 5.2 | **Session Duration** | histogram | seconds | Total wall-clock time from prompt to session end, regardless of outcome. | Starting entry -> Ended entry | Session Duration |
-| 5.3 | **User Attention Ratio** | gauge | % | Fraction of session time requiring active user engagement. Lower is better. | (Waiting + steering + user-input time) / Session Duration | *(new)* |
-| 5.4 | **Leverage Ratio** | gauge | ratio | Ratio of agent productive time to user input time. The "multiplication factor" of agent work per unit of user input. | Working time / (Waiting + steering input time) | *(new)* |
-| 5.5 | **Abandonment Rate** | rate | % | Fraction of sessions terminated by user action before task completion. | Any non-terminal -> Ended (user_cancel) | Abandonment Rate |
-| 5.6 | **Abandonment Phase** | histogram | categorical | Distribution of which state the user was in when they abandoned. | State at user_cancel event | *(new)* |
-| 5.7 | **Return Rate** | rate | % | Fraction of users who initiate a new session within a configurable time window (e.g., 24 hours). | Post-session | *(new)* |
-| 5.8 | **Net Satisfaction** | gauge | -1 to +1 | Composite satisfaction signal combining explicit feedback (thumbs up/down) and implicit signals (return rate, rework rate, abandonment). Requires feedback collection. | Post-session | *(QoE survey equivalent)* |
-| 5.9 | **Turn-over-Turn Coherence** | gauge | 0--1 | Whether output quality degrades as the session progresses through multiple turns. Ratio of Delivery Quality Score in the final third versus first third of turns. Requires evaluation judge. | Across Working episodes | *(analogous to bitrate degradation)* |
-
-### 4.6 Metric-to-State Mapping Summary
-
-Every metric maps to the state machine. The reverse index:
-
-| State | Metrics Measured |
-|-------|-----------------|
-| **Starting** | TTFR (1.1), Start Failure Rate (1.2), Pre-Response Abandonment (1.3), Start Retry Rate (1.4) |
-| **Working** | Stall Ratio (2.1, denominator), Progress Cadence (2.4), Perceived Throughput (2.5), Output Fidelity (2.6), Steering Events (3.4), Steering Recovery (3.5) |
-| **Stalled** | Stall Ratio (2.1, numerator), Stall Frequency (2.2), Stall Duration (2.3) |
-| **Waiting** | Interaction Frequency (3.1), Wait Duration (3.2), Resumption Latency (3.3), Interaction Overhead (3.6) |
-| **Failed** | Start Failure Rate (1.2), Abandonment Phase (5.6) |
-| **Ended** | Task Completion (4.1), First-Attempt Success (4.2), Delivery Quality (4.3), Rework Rate (4.4), Partial Delivery (4.5), Token Efficiency (4.6) |
-| **Cross-state** | TTTC (5.1), Session Duration (5.2), User Attention Ratio (5.3), Leverage Ratio (5.4), Abandonment Rate (5.5), Return Rate (5.7), Net Satisfaction (5.8), Coherence (5.9) |
-
-### 4.7 Observability Classification
-
-A metric is only as useful as its measurability. We classify each metric by what instrumentation is required:
-
-| Level | Requirement | Metrics |
-|-------|-------------|---------|
-| **L1: Client-side only** | Timestamps and event stream visible in the UI layer. No framework access needed. | TTFR, Pre-Response Abandonment, Stall Ratio*, Stall Duration, Progress Cadence, Perceived Throughput, Wait Duration, Resumption Latency, Session Duration, TTTC, Abandonment Rate, Abandonment Phase |
-| **L2: Agent framework** | Access to framework-level events: tool call lifecycle, retry logic, error types, token counts. | Start Failure Rate, Start Retry Rate, Stall Frequency, Interaction Frequency, Task Completion Rate, Token Efficiency, Output Fidelity |
-| **L3: Derived/composite** | Computed from L1 + L2 metrics. No new instrumentation. | Stall Ratio (precise), First-Attempt Success, User Attention Ratio, Leverage Ratio, Interaction Overhead, Rework Rate, Partial Delivery Rate |
-| **L4: Evaluation judge** | Needs an external evaluator (human or LLM-as-judge). Cannot be automated from instrumentation alone. | Delivery Quality Score, Steering Recovery Time (full precision), Net Satisfaction, Turn-over-Turn Coherence |
-
-*Stall Ratio at L1 uses a client-side heuristic (output gap > threshold). At L2 it uses explicit tool-call events. Both are valid; L2 is more precise.*
-
-**Table 3.** Observability classification. L1 and L2 metrics are instrumentable today by any agent framework. L3 metrics require only aggregation. L4 metrics are candidates for phased adoption.
-
-This classification has a practical implication: an organization can begin measuring agent experience quality using only L1 metrics (12 metrics, requiring nothing more than timestamp logging at the UI layer), then incrementally add L2 (7 more metrics, requiring framework instrumentation), L3 (5 more, requiring computation), and finally L4 (4 more, requiring evaluation infrastructure). The framework is designed for progressive adoption, not all-or-nothing deployment.
-
-### 4.8 Metric Interactions and Tradeoffs
-
-Several metrics exhibit inherent tensions that practitioners must understand:
-
-1. **TTFR vs. Delivery Quality.** Streaming the first token instantly (low TTFR) may come at the cost of the agent "thinking aloud" with low-quality prefill. Optimizing TTFR naively degrades quality. We capture both and let the composite score balance them.
-
-2. **Stall Frequency vs. Stall Duration.** An agent can make many short tool calls (high frequency, low duration) or batch them into fewer long calls (low frequency, high duration). Both produce the same Stall Ratio but feel different to the user. Many short stalls break attention more frequently; one long stall tests patience. This motivates reporting all three: ratio, frequency, and duration distribution.
-
-3. **Interaction Frequency vs. First-Attempt Success Rate.** An agent that never asks questions may complete tasks on the first attempt more often but fail badly when its assumptions are wrong. An agent that asks clarifying questions may have a lower first-attempt rate but higher overall Task Completion Rate. Neither extreme is optimal; the framework captures both.
-
-4. **Token Efficiency vs. Delivery Quality.** Chain-of-thought and internal reasoning consume tokens without producing visible output, reducing Token Efficiency. But they typically improve Delivery Quality. This tradeoff is fundamental and should be reported rather than optimized away.
-
-### 4.9 Zhang Video Metrics to Agent Metrics Mapping
-
-| Zhang et al. Metric | Agent Equivalent | Relationship |
-|---------------------|-----------------|--------------|
-| Join Time | TTFR (1.1) | Direct parallel |
-| Join Failure Rate | Start Failure Rate (1.2) | Direct parallel |
-| Buffering Ratio | Stall Ratio (2.1) | Direct parallel --- the "headline" metric |
-| Buffering Frequency | Stall Frequency (2.2) | Direct parallel |
-| Buffering Duration | Stall Duration Distribution (2.3) | Direct parallel |
-| Average Bitrate | Perceived Throughput (2.5) | Conceptual parallel: sustained output rate |
-| Rendering Quality | Output Fidelity Rate (2.6) | Conceptual parallel: quality of what is delivered |
-| Abandonment Rate | Abandonment Rate (5.5) | Direct parallel |
-| Session Duration | Session Duration (5.2) | Direct parallel |
-| *(none)* | All Interaction metrics (3.1--3.6) | **Gap.** Video has no interaction dimension. |
-| *(none)* | Delivery metrics (4.1--4.6) | **Gap.** Video has no task concept. |
-| *(none)* | Token Efficiency (4.6) | **Gap.** Video has no per-stream cost. |
-
-**Table 4.** Mapping between Zhang et al.'s video quality metrics and our agent experience metrics. Five direct parallels anchor the framework; seven new metrics address the structural novelties of agent interaction.
+These operational metrics are what every agent framework can instrument today. They require no subjective judgment, no evaluation infrastructure, and no user feedback. They are the foundation from which experience metrics are derived.
 
 ---
 
-## 5. Diagnostic Dimensions
+## 5. Experience Metrics: Five Pillars
+
+Experience metrics answer "does the user care?" They are derived from operational metrics but organized around user perception rather than system behavior. Where operational metrics tell you that tool call duration spiked, experience metrics tell you that reliability degraded --- and *that* is what drives adoption, retention, and trust.
+
+### 5.1 Why Five Pillars?
+
+Cross-domain evidence suggests that 3-5 top-level categories is optimal for a quality framework. Core Web Vitals uses 3. SRE Golden Signals and RAIL use 4. Zhang's video metrics and the E-model use 5. NASA-TLX uses 6 but is frequently simplified. The mean across ten frameworks we surveyed is 4.1; the mode is 4; the range is 3-6.
+
+We choose five pillars because the agent domain is structurally richer than any single prior domain --- it combines real-time streaming (like video), interactivity (like web), task completion (like chatbots), and autonomous operation (like no prior domain). Five pillars are the minimum needed to cover this space without redundancy.
+
+Each pillar is defined by a user question. If a user would ask it, we measure it. If two questions are really the same question, we merge the pillars. If a pillar cannot be asked as a simple question, it is too abstract.
+
+The five pillars are also designed to be orthogonal --- improving one does not automatically improve or degrade another. A session can be fast but unreliable (high Responsiveness, low Reliability). A session can be autonomous but incorrect (high Autonomy, low Correctness). This independence is what makes the pillars useful for diagnosis: when quality drops, you can identify *which* dimension degraded.
+
+For executive communication, the five pillars collapse into a three-tier view:
+
+| Tier | Pillars | Executive Question |
+|------|---------|-------------------|
+| **Process** | Responsiveness + Reliability | "Is the system working smoothly?" |
+| **Experience** | Autonomy | "Is the agent handling it, or is the user doing the work?" |
+| **Outcome** | Correctness + Completion | "Did we get the right result?" |
+
+### 5.2 Pillar 1: Responsiveness --- "Is it fast?"
+
+Responsiveness captures whether the agent feels fast and fluid. It maps to the most universal dimension in QoE --- every domain we surveyed measures "how fast did the system respond?" Video has join time. Web has LCP and INP. RAIL targets 100ms response. Telephony penalizes delay. Gaming measures input latency. Responsiveness is the table stakes of experience quality.
+
+| Metric | What It Measures | How It Is Measured | Observability |
+|--------|-----------------|-------------------|---------------|
+| **Time to First Token** | How long until the agent starts responding | Prompt submission to first visible output token | L1 |
+| **Output Speed** | How fast visible output arrives during generation | Visible output tokens per second during Working state | L1 |
+| **Resume Speed** | How fast the agent picks back up after user input | User input received to next visible output token | L1 |
+| **Time per Turn** | How long each exchange cycle takes | Wall-clock time per user-agent turn | L1 |
+
+**State machine mapping.** Responsiveness measures the *duration* of Starting (Time to First Token), the *throughput* within Working (Output Speed), and the *transition latency* from Waiting to Working (Resume Speed).
+
+**Cross-domain parallel.** Time to First Token parallels Zhang's Join Time --- the most frequently cited video QoE metric. Output Speed parallels video bitrate (sustained throughput of useful content). Resume Speed parallels the rebuffer-exit latency that gaming QoE research identifies as critical for perceived smoothness.
+
+**Independence.** A session can be fast but unreliable (responsive but error-prone), or fast but incorrect (responsive but wrong). Speed does not imply quality.
+
+### 5.3 Pillar 2: Reliability --- "Does it work without breaking?"
+
+Reliability captures whether the agent runs smoothly or is plagued by failures, stalls, and hidden retries. It maps to the interruption/stall dimension present in video (buffering ratio), gaming (freeze rate), and web (load failures). Zhang's single most important finding was that buffering ratio dominates engagement --- reliability is the pillar that separates usable agents from frustrating ones.
+
+| Metric | What It Measures | How It Is Measured | Observability |
+|--------|-----------------|-------------------|---------------|
+| **Start Failure Rate** | How often the agent fails to start at all | Sessions with Starting -> Failed / total sessions | L2 |
+| **Stall Ratio** | What fraction of active time is spent stalled | Time in Stalled / (Time in Working + Stalled) | L1/L2 |
+| **Stall Count** | How many times progress is interrupted | Working -> Stalled transitions per session | L2 |
+| **Average Stall Duration** | How long each interruption lasts | Mean duration of Stalled episodes | L1 |
+| **Error Rate** | How often errors occur during work | Error events per session | L2 |
+| **Hidden Retries** | How often the agent silently retries failed operations | Retry events not visible to user per session | L2 |
+
+**State machine mapping.** Reliability measures the Stalled state comprehensively --- its ratio to Working, its frequency, and its duration --- plus the Starting -> Failed transition (start failures) and error events across all states.
+
+**Cross-domain parallel.** Stall Ratio is the direct parallel to Zhang's Buffering Ratio --- the single most predictive metric of viewer disengagement. Start Failure Rate parallels Video Start Failure (VSF), which Conviva includes in the SPI as a gate metric. Hidden Retries have no video parallel but map to the E-model's equipment impairment factor (Ie) --- degradation that the user does not directly see but that affects quality through extended latency.
+
+**Independence.** A session can be reliable but slow (no stalls, but high latency), or reliable but incorrect (smooth operation, wrong output).
+
+### 5.4 Pillar 3: Autonomy --- "Can it handle it on its own?"
+
+Autonomy captures whether the agent operates independently or requires constant user supervision. This is the pillar unique to agent interactions --- it has no parallel in passive media (video, voice), minimal parallel in web performance, and only partial parallel in chatbot metrics (containment rate). It is the structural addition that adapts the Zhang model to interactive AI systems.
+
+Autonomy matters because the entire value proposition of an AI agent is leverage: the agent does the work so the user does not have to. An agent that constantly asks questions, requires corrections, or needs hand-holding is not delivering on this promise.
+
+| Metric | What It Measures | How It Is Measured | Observability |
+|--------|-----------------|-------------------|---------------|
+| **Questions Asked** | How often the agent interrupts for clarification | Working -> Waiting transitions per session | L2 |
+| **User Corrections** | How often the user must redirect the agent | Corrective user messages during Working state | L1 |
+| **First-Try Success Rate** | How often the agent gets it right without help | Sessions with zero corrections and task completion / completed sessions | L3 |
+| **User Active Time %** | What fraction of session time requires user engagement | (Waiting + correction + user-input time) / session duration | L3 |
+| **Work Multiplier** | How much agent work each unit of user input generates | Working time / (Waiting + user input time) | L3 |
+
+**State machine mapping.** Autonomy measures the Waiting state (Questions Asked, User Active Time %), the Working state during corrections (User Corrections), and derived ratios across states (Work Multiplier, First-Try Success Rate).
+
+**Cross-domain parallel.** Chatbot containment rate (fraction of conversations resolved without human escalation) is the closest parallel. ISO 9241-11 efficiency (resources used relative to results achieved) captures a similar concept. NASA-TLX effort dimension measures how hard the user had to work. Nielsen's heuristic #7 (flexibility and efficiency of use) relates to whether the system adapts to expert users.
+
+**Independence.** A session can be autonomous but slow (the agent works independently but takes forever), or autonomous but incorrect (the agent does not ask questions but produces wrong output). High autonomy does not imply high quality --- it means low user effort.
+
+### 5.5 Pillar 4: Correctness --- "Is the output right?"
+
+Correctness captures the quality of the agent's output --- whether it is accurate, well-formed, and useful. It maps to the output quality dimension present in every QoE framework: video has bitrate and VMAF, telephony has the R-factor, chatbots have resolution quality, and HCI has ISO 9241-11 effectiveness.
+
+| Metric | What It Measures | How It Is Measured | Observability |
+|--------|-----------------|-------------------|---------------|
+| **Output Quality Score** | Overall correctness of the final output | Evaluation judge (human or LLM-as-judge) assessing correctness, completeness, adherence | L4 |
+| **Clean Output Rate** | Fraction of output that is well-formed | Parse/validate each output chunk (valid syntax, valid markdown, no truncation) | L2 |
+| **Quality Decay** | Whether output quality degrades over long sessions | Quality score in final third of turns vs. first third | L4 |
+| **Useful Token %** | How much of the compute budget produced user-facing value | Visible output tokens / total tokens consumed | L2 |
+
+**State machine mapping.** Correctness primarily measures the output produced during Working episodes and evaluated at the Ended state. Quality Decay measures change across successive Working episodes. Clean Output Rate is assessed in real-time during Working.
+
+**Cross-domain parallel.** Output Quality Score parallels video's perceptual quality (MOS, VMAF) --- the hardest metric to measure but often the most important. Clean Output Rate parallels video rendering quality (frame rate, resolution fidelity). Quality Decay parallels bitrate degradation over long video sessions. Useful Token % has no direct video parallel but maps to the agent-specific concern of compute efficiency.
+
+**Independence.** A session can be correct but slow (right answer, long wait), or correct but unreliable (good output despite multiple stalls and retries). Correctness measures the *what*; other pillars measure the *how*.
+
+### 5.6 Pillar 5: Completion --- "Did it finish the job?"
+
+Completion captures whether the agent achieved the user's goal. It is the ultimate outcome metric --- everything else is process. Task completion maps to chatbot resolution rate, HCI task completion rate, and (loosely) video session duration as a proxy for engagement.
+
+| Metric | What It Measures | How It Is Measured | Observability |
+|--------|-----------------|-------------------|---------------|
+| **Task Completion Rate** | How often the agent finishes the job | Sessions with task_complete signal and no immediate dispute / total sessions | L2 |
+| **Redo Rate** | How often users must redo the task | Sessions followed by a closely related prompt within a time window | L3 |
+| **Gave-Up Rate** | How often users abandon mid-task | Sessions terminated by user before task completion | L1 |
+| **Where They Gave Up** | At what point users abandon | State at the time of user_cancel event | L1 |
+| **Time to Done** | How long until the task is complete | Prompt submission to task_complete signal | L1 |
+| **Came Back Rate** | Whether users return for more sessions | Users who initiate a new session within 24 hours | L1 |
+
+**State machine mapping.** Completion measures the terminal transitions: Working -> Ended (task_complete) for success, any-state -> Ended (user_cancel) for abandonment, and post-session behavior (Redo Rate, Came Back Rate). Where They Gave Up maps the state at abandonment, revealing whether users give up during Starting (too slow to start), Stalled (too many interruptions), or Working (wrong direction).
+
+**Cross-domain parallel.** Task Completion Rate parallels chatbot resolution rate and first contact resolution. Gave-Up Rate parallels Zhang's abandonment rate --- the fraction of sessions terminated before completion. Where They Gave Up parallels the concept of "abandonment point" that Conviva tracks for video (did users leave during startup, during buffering, or during playback?). Came Back Rate is a standard engagement metric across all domains.
+
+**Independence.** A session can complete but be incorrect (the agent "finishes" but the output is wrong --- captured by low Correctness), or complete but with high user effort (the agent finishes but only after extensive corrections --- captured by low Autonomy).
+
+### 5.7 MECE Validation
+
+The five pillars are collectively exhaustive and mutually exclusive across the dimensions of user experience:
+
+| Dimension | Responsible Pillar | Why Not Others |
+|-----------|-------------------|---------------|
+| Speed / latency | Responsiveness | Reliability measures interruptions, not speed |
+| Failures / interruptions | Reliability | Responsiveness measures latency, not failure |
+| User effort / independence | Autonomy | Reliability measures system failures, not user burden |
+| Output quality / accuracy | Correctness | Completion measures whether it finished, not whether it is right |
+| Goal achievement / retention | Completion | Correctness measures output quality, not goal achievement |
+
+Every aspect of agent experience quality maps to exactly one pillar. No quality concern falls through the cracks. No concern is counted twice.
+
+---
+
+## 6. Agent Content Types
+
+Zhang's critical insight was that video content type (Short VoD, Long VoD, Live) fundamentally changed user expectations and therefore changed which metrics mattered most. A 2-second rebuffer during live sports is a crisis; during a 2-hour movie, it is a minor irritant. Content type *moderated* the relationship between quality metrics and user engagement.
+
+We define four agent content types that serve the same structural role.
+
+### 6.1 The Four Types
+
+**Quick Answer** (`quick_answer`). Single-turn or very short multi-turn interaction. The user expects a fast, direct response. Typically 0-2 tool calls, 1-2 turns, under 30 seconds total. Zhang analogue: Short VoD.
+*Example:* "What does this error mean?" or "Convert this JSON to YAML."
+
+**Guided Task** (`guided_task`). Multi-turn interactive session where user and agent collaborate toward a goal. Typically 3-15 turns, 3-20 tool calls, 1-15 minutes. The user stays engaged and provides feedback. Zhang analogue: Long VoD.
+*Example:* "Help me refactor this module to use dependency injection."
+
+**Deep Session** (`deep_session`). Extended multi-turn session with high complexity. 15-50+ turns, 20-100+ tool calls, 15-60+ minutes. The user is deeply invested; abandonment cost is high. Zhang analogue: Live content.
+*Example:* "Implement the authentication system across these 12 files."
+
+**Autonomous Workflow** (`autonomous_workflow`). Agent operates with minimal or no user interaction after the initial instruction. May run for minutes to hours. The user checks back for results. Zhang analogue: no direct parallel (closest is batch transcoding).
+*Example:* "Run the full test suite, fix all failures, and open a PR."
+
+### 6.2 Pillar Importance by Content Type
+
+Different content types shift which pillars matter most. The user watching a quick answer cares about speed above all. The user waiting for an autonomous workflow cares about correctness and completion --- they are not watching in real-time, so stalls only matter insofar as they extend total runtime.
+
+| Pillar | Quick Answer | Guided Task | Deep Session | Autonomous Workflow |
+|--------|:-----------:|:-----------:|:------------:|:-------------------:|
+| **Responsiveness** | **Critical** | High | Medium | Low |
+| **Reliability** | Medium | **Critical** | **Critical** | Medium |
+| **Autonomy** | Low | High | Medium | Low |
+| **Correctness** | **Critical** | Medium | Medium | **Critical** |
+| **Completion** | High | Medium | High | **Critical** |
+
+**Table 6.** Qualitative importance of experience pillars by content type.
+
+The rationale: **Quick Answer** sessions are dominated by Responsiveness and Correctness because speed and accuracy are everything for a simple question; failing a trivial question is unacceptable. **Guided Task** is the balanced default, with Reliability and Autonomy elevated because the user is actively collaborating. **Deep Session** has the highest Reliability requirement because a hang at turn 30 of a 40-turn session is devastating. **Autonomous Workflow** is dominated by Correctness and Completion because the agent is unsupervised and every decision must be right.
+
+When reporting across a mixed workload, content-type-specific assessments should be computed for each session before aggregation. Aggregating without content-type stratification is like averaging video quality across live sports and background music videos --- the number is meaningless.
+
+---
+
+## 7. Diagnostic Dimensions
 
 Metrics answer *how well*. Dimensions answer *why* and *where*. A diagnostic dimension is a categorical or ordinal attribute attached to every metric observation that enables slicing, filtering, and root-cause analysis. Without dimensions, a drop in start failure rate is an alarm; with dimensions, it becomes "start failure rate for Claude 3.5 Sonnet on multi-turn coding tasks via the VS Code extension rose 12% after the November 15 model update."
 
 Zhang never formalized a dimension system --- his paper sliced by content type and CDN but did not systematize the concept. Conviva later operationalized dimensional slicing across hundreds of combinations as the core of their product. We adopt Conviva's spirit while defining a taxonomy specific to agents.
 
-### 5.1 Dimension Catalog
+We define eight dimensions across two classes:
 
-We define 11 dimensions across three classes:
+**Core Dimensions** (always present):
 
-**Core Dimensions** (always present, require only standard request metadata):
-
-| ID | Dimension | Sub-attributes | Example Slices |
-|----|-----------|---------------|----------------|
-| D1 | **Agent** | agent_name, agent_version, agent_framework | "Stall ratio by agent framework"; "AXS trend for Claude Code v1.2 vs v1.3" |
-| D2 | **Model** | provider, model_id, fallback_position | "TTFR by model provider"; "Start failure rate when falling back from Opus to Sonnet" |
-| D3 | **Interface** | interface_type (CLI, IDE, web_chat, API, mobile, voice) | "Abandonment rate on mobile vs web_chat" |
-| D4 | **Task** | task_category, complexity_tier (trivial through heroic) | "Task completion rate for debugging vs code generation"; "Stall ratio by complexity tier" |
-| D5 | **Session Type** | session_mode (single_turn, multi_turn_interactive, multi_turn_autonomous, background_batch) | "Stall freedom for autonomous vs interactive sessions" |
+| Dimension | Sub-Attributes | Example Slices |
+|-----------|---------------|----------------|
+| **Agent** | agent_name, agent_version, agent_framework | "Stall ratio by agent framework" |
+| **Model** | provider, model_id, fallback_position | "Time to First Token by model provider" |
+| **Interface** | interface_type (CLI, IDE, web, API, mobile) | "Gave-Up Rate on mobile vs CLI" |
+| **Task** | task_category, complexity_tier | "Task Completion Rate for debugging vs code generation" |
+| **Session Type** | session_mode (single_turn, multi_turn, autonomous, batch) | "Stall Ratio for autonomous vs interactive sessions" |
 
 **Extended Dimensions** (require deeper instrumentation):
 
-| ID | Dimension | Sub-attributes | Example Slices |
-|----|-----------|---------------|----------------|
-| D6 | **Tool** | tool_name, tool_provider, mcp_server, tool_category | "Stall duration distribution by tool_name"; "Tool success rate by MCP server" |
-| D7 | **Context** | window_utilization_pct, compaction_event_count | "Delivery Quality when context > 75% utilized"; "Coherence after compaction events" |
-| D8 | **User** | user_segment, geography, plan_tier | "TTFR by geography"; "AXS by user segment" |
+| Dimension | Sub-Attributes | Example Slices |
+|-----------|---------------|----------------|
+| **Tool** | tool_name, tool_provider, mcp_server | "Stall Duration by tool_name" |
+| **Context** | window_utilization_pct, compaction_events | "Quality Decay when context > 75% utilized" |
+| **User** | user_segment, geography, plan_tier | "Time to First Token by geography" |
 
-**Derived Dimensions** (computed from raw dimensions or metric values):
+**Table 7.** Diagnostic dimensions. Core dimensions are mandatory on every metric observation. Extended dimensions are captured when instrumentation is available.
 
-| ID | Dimension | Sub-attributes | Example Slices |
-|----|-----------|---------------|----------------|
-| D9 | **Content Type** | content_type (quick_answer, guided_task, deep_session, autonomous_workflow) | "AXS by content type"; "Which metric dominates variance for deep_session" |
-| D10 | **Quality Regime** | regime (nominal, degraded, failed) | "% sessions in degraded regime by model provider" |
-| D11 | **Error Class** | error_class, error_source | "Start failure rate by error_class"; "Rate-limit stalls by model provider" |
-
-### 5.2 Agent Content Types: The Moderating Variable
-
-Zhang's critical insight was that video content type (Short VoD, Long VoD, Live) fundamentally changed user expectations and therefore changed which metrics mattered most. A 2-second rebuffer during live sports is a crisis; during a 2-hour movie, it is a minor irritant. Content type *moderated* the relationship between quality metrics and user engagement.
-
-We define four agent content types that serve the same structural role:
-
-**Quick Answer** (`quick_answer`). Single-turn or very short multi-turn interaction. The user expects a fast, direct response. Typically 0--2 tool calls, 1--2 turns, under 30 seconds total. Dominant quality factors: TTFR, start failure rate, and correctness of the single response. Zhang analogue: Short VoD. Example: "What does this error mean?" or "Convert this JSON to YAML."
-
-**Guided Task** (`guided_task`). Multi-turn interactive session where user and agent collaborate toward a goal. Typically 3--15 turns, 3--20 tool calls, 1--15 minutes. The user stays engaged and provides feedback. Dominant quality factors: stall ratio, stall frequency, interaction overhead, task completion rate. Zhang analogue: Long VoD. Example: "Help me refactor this module to use dependency injection."
-
-**Deep Session** (`deep_session`). Extended multi-turn session with high complexity. 15--50+ turns, 20--100+ tool calls, 15--60+ minutes. The user is deeply invested; abandonment cost is high. Dominant quality factors: stall freedom (mid-session failures are catastrophic), turn-over-turn coherence, resolution quality. Zhang analogue: Live content. Example: "Implement the authentication system across these 12 files."
-
-**Autonomous Workflow** (`autonomous_workflow`). Agent operates with minimal or no user interaction after the initial instruction. May run for minutes to hours. The user checks back for results. Dominant quality factors: task completion rate, delivery quality, start failure rate, token efficiency. Zhang analogue: no direct parallel (closest is batch transcoding). Example: "Run the full test suite, fix all failures, and open a PR."
-
-### 5.3 Content Type Weight Modifiers
-
-| Metric Domain | quick_answer | guided_task | deep_session | autonomous_workflow |
-|---------------|:---:|:---:|:---:|:---:|
-| Initiation (TTFR, Start Failure) | High | Medium | Medium | High |
-| Progress (Stall Ratio, Frequency) | Low | High | High | Low |
-| Interaction (Flow, Overhead) | Low | High | Medium | Low |
-| Delivery (Quality, Fidelity) | High | Medium | Medium | High |
-| Resolution (Completion, Coherence) | Medium | Medium | High | High |
-
-**Table 5.** Relative importance of metric domains by content type. These qualitative shifts formalize the intuition that different interaction patterns demand different quality priorities.
-
-### 5.4 Dimension Interaction Patterns
-
-Several dimension pairs interact in ways that affect analysis. Failing to account for these leads to Simpson's Paradox effects or misattributed root causes:
-
-1. **Model x Task** (confounding): Model quality varies by task category. Always cross-slice before drawing conclusions.
-2. **Interface x Session Type** (confounding): CLI users skew toward deep sessions; web chat users toward quick answers. Compare conditional distributions.
-3. **Tool x Context** (causal chain): Heavy tool use fills the context window, triggering compaction, which may degrade coherence. Follow the causal chain in analysis.
-4. **Content Type x everything** (stratification): Content type is the primary stratification variable. Report all metrics broken down by content type *before* any other slice.
-5. **Model x Error Class** (diagnostic): When Start Failure Rate spikes, the first diagnostic slice is Model x Error Class --- rate limits from one provider, auth errors from another, context overflows from a specific model's token limit.
-6. **User x Interface x Geography** (latency attribution): TTFR varies with geography (network latency to model provider) and interface (web chat adds rendering overhead versus CLI's direct stream). Slice all three together to separate infrastructure latency from agent latency. Without this cross-cut, a TTFR regression caused by a new geographic deployment may be misattributed to a model update.
-
-### 5.5 Dimension Governance
-
-To prevent dimension explosion, we propose governance rules:
-
-1. Core dimensions (D1--D5) are mandatory on every metric observation.
-2. Extended dimensions (D6--D8) are captured when instrumentation is available but do not gate metric computation.
-3. Derived dimensions (D9--D11) are computed in the analysis layer, not at collection time.
-4. Any dimension with cardinality exceeding 1,000 distinct values must be binned before dashboard use.
-5. Adding a core dimension is a breaking schema change; extended dimensions can be added freely.
+Several dimension pairs interact in ways that affect analysis: Model x Task (model quality varies by task category), Interface x Session Type (CLI users skew toward deep sessions), and Tool x Context (heavy tool use fills the context window, triggering compaction). Content type is the primary stratification variable --- report all metrics broken down by content type before any other slice.
 
 ---
 
-## 6. Agent Experience Score (AXS)
+## 8. Illustrative Examples
 
-### 6.1 Philosophy
+We present three scenarios that exercise the full framework, showing operational metrics captured during a session, experience pillar assessments derived from them, and diagnostic insights. These examples use realistic timings drawn from common agent interactions.
 
-A composite score collapses a multi-dimensional quality space into a single number. This is inherently lossy. The question is not whether information is lost --- it always is --- but whether the compression is useful enough to justify the loss.
+### 8.1 Coding Agent: Guided Task
 
-The gain is real. Organizations need a single indicator to answer: "Is agent experience getting better or worse?" Without it, teams drown in dashboards. Apdex [17] succeeded in web monitoring not because it was sophisticated --- it is crude --- but because it gave executives a number they could track weekly and set targets against. MOS [16] unified decades of telephony quality research into a 1--5 scale that every telecom engineer understands.
-
-The loss is also real. VMAF [18] demonstrated that a single score can mask component failures: a video with perfect color but stuttering playback can score the same as one with smooth playback but washed-out color. Netflix addressed this by training VMAF on subjective quality data, but the masking problem persists for novel distortion types outside the training distribution.
-
-Our position: AXS is an *executive metric*, not a diagnostic metric. It answers "how good?" and "is it trending up or down?" It does not answer "why?" --- that is what the dimension system (Section 5) and the individual phase metrics (Section 4) are for. AXS earns its place by being the single number printed at the top of every quality report, the number that triggers investigation when it drops.
-
-We adopt six design principles:
-
-| Principle | Implication |
-|-----------|-------------|
-| **P1: Interpretable scale** | A human should develop intuition for what "AXS 85" means without a reference card |
-| **P2: Sensitive to real degradation** | A model update that increases stalls by 20% must visibly move AXS |
-| **P3: Resistant to gaming** | Optimizing AXS should require genuinely improving the experience |
-| **P4: Content-type-aware** | Weights shift by Agent Content Type |
-| **P5: Decomposable** | You can always drill from AXS into component sub-scores |
-| **P6: Open formula** | The formula, weights, and thresholds are published. No proprietary black box. |
-
-### 6.2 Score Architecture: Gated Multiplicative-Additive Hybrid
-
-**Why not a pure weighted sum?** A formula `AXS = w1*S1 + w2*S2 + ...` allows catastrophic failure in one component to be masked by excellence in others. An agent that never starts (S_start = 0) but has "excellent" delivery quality on the sessions that somehow work could still score 60+. This is nonsensical --- a user who cannot start the agent has zero experience quality. Weighted sums are compensatory by construction; agent quality has non-compensatory failure modes.
-
-**Why not a pure multiplicative model?** A formula `AXS = S1 * S2 * S3 * S4 * S5` (each on 0--1) is too punitive. If any component is 0, AXS is 0 --- correct for start failure but too harsh for a minor interaction flow hiccup. It also compresses the scale: 0.8^5 = 0.33, which maps poorly to intuition on a 0--100 scale.
-
-**Why a gated hybrid?** The agent experience has a clear hierarchical structure:
-
-1. **Prerequisite layer** (must be non-zero): Can the agent start? Does it resolve the task? If either fails, quality is zero regardless of process quality.
-2. **Quality layer** (continuous, compensatory): Given that the agent starts and resolves, how smooth, fast, and reliable was the journey?
-
-This maps naturally to a gate (multiplicative, non-compensatory) on the prerequisites and a weighted sum (additive, compensatory) on the quality factors.
-
-#### The Formula
-
-```
-AXS = G x Q x 100
-```
-
-Where:
-- **G** (Gate Score, 0--1): Captures prerequisite quality requirements that can veto the entire experience.
-- **Q** (Quality Score, 0--1): Captures continuous quality dimensions in a weighted sum.
-- **100**: Scales to a 0--100 range for interpretability.
-
-#### Gate Score (G)
-
-```
-G = S_start^alpha x S_res^beta
-```
-
-- **S_start** (Start Success Score, 0--1): At session level, binary (0 or 1). At cohort level, equals start success rate.
-- **S_res** (Resolution Score, 0--1): A composite of resolution metrics (see below).
-- **alpha = 1.0** (start gate exponent): Linear gate --- each 1% drop in start success causes ~1% drop in AXS.
-- **beta = 0.8** (resolution gate exponent): Slightly softened --- partial resolution still delivers some value.
-
-The bookends rationale: start and resolution are the entry and exit of the experience. If you cannot start, nothing else matters. If you do not resolve, the effort was wasted. This mirrors Zhang's finding that join failures and premature exits dominate quality impact. By making them gates rather than weighted-sum components, we ensure that no amount of smooth mid-session quality can compensate for an inability to start or finish.
-
-#### Quality Score (Q)
-
-```
-Q = w1 * S_stall + w2 * S_del + w3 * S_flow
-```
-
-- **S_stall** (Stall Freedom Score): How free was the session from unexpected interruptions?
-- **S_del** (Delivery Quality Score): How well did the agent's outputs perform?
-- **S_flow** (Interaction Flow Score): How smooth was the turn-by-turn experience?
-
-Default weights for `guided_task`:
-
-| Component | Weight | Rationale |
-|-----------|--------|-----------|
-| w1: Stall Freedom | 0.40 | Stalls are the most salient negative experience. Zhang found buffering ratio was the #1 predictor of abandonment. |
-| w2: Delivery Quality | 0.35 | Tool failures and incorrect outputs directly undermine trust and require rework. |
-| w3: Interaction Flow | 0.25 | Latency and streaming smoothness matter but are less catastrophic than stalls or errors. |
-
-Constraint: w1 + w2 + w3 = 1.0.
-
-### 6.3 Sub-Score Definitions
-
-**S_start (Start Success Score).**
-
-Session level: S_start = 1 if Starting -> Working occurred; 0 otherwise.
-
-Cohort level:
-```
-S_start = start_success_rate x (1 - lambda x fraction_slow_starts)
-```
-where `fraction_slow_starts` = successful starts with TTFR > 10s / successful starts, and lambda = 0.3. A cohort where every start succeeds but 50% are slow scores 0.85, not 1.0.
-
-**S_stall (Stall Freedom Score).**
-```
-S_stall_base = 1 - clamp(stall_ratio / 0.20, 0, 1)
-S_stall = S_stall_base x (1 - 0.3 x clamp(stall_count / 10, 0, 1))
-```
-A session that is 20%+ stalled scores 0 on the base component. The multiplicative stall-count penalty means many short stalls (same total ratio but high count) score worse than one long stall --- each stall breaks attention, and attention restoration has a fixed cost. This mirrors Zhang's finding that rebuffering frequency has an independent negative effect beyond rebuffering ratio.
-
-**S_del (Delivery Quality Score).**
-```
-S_del = 0.40 x tool_success_rate
-      + 0.35 x first_attempt_correctness
-      + 0.25 x (1 - error_recovery_failure_rate)
-```
-At L4 observability (evaluation judge available), `first_attempt_correctness` can be replaced with the full Delivery Quality Score (metric 4.3). At L2, we use the proxy of zero-steering-events as an imperfect but instrumentable measure.
-
-**S_flow (Interaction Flow Score).**
-```
-S_flow = 0.40 x latency_score
-       + 0.25 x streaming_score
-       + 0.35 x responsiveness_score
-```
-where:
-- `latency_score` = 1 - clamp(median_TTFR / 15, 0, 1)
-- `streaming_score` = 1 - clamp(token_gap_ratio, 0, 1), measuring fraction of output time with gaps >500ms between token chunks
-- `responsiveness_score` = 1 - clamp(median_inter_turn_latency / 30, 0, 1)
-
-**S_res (Resolution Score).**
-```
-S_res = 0.45 x task_completion_rate
-      + 0.35 x resolution_quality
-      + 0.20 x (1 - abandonment_rate)
-```
-At L2, `resolution_quality` is approximated by (1 - Partial Delivery Rate).
-
-### 6.4 Content-Type Weight Adaptation
-
-| Parameter | quick_answer | guided_task | deep_session | autonomous_workflow |
-|-----------|:---:|:---:|:---:|:---:|
-| alpha (start gate) | 1.0 | 1.0 | 1.0 | 1.0 |
-| beta (resolution gate) | 1.0 | 0.8 | 0.9 | 1.0 |
-| w1 (stall freedom) | 0.20 | 0.40 | 0.45 | 0.15 |
-| w2 (delivery quality) | 0.30 | 0.35 | 0.35 | 0.50 |
-| w3 (interaction flow) | 0.50 | 0.25 | 0.20 | 0.35 |
-
-**Table 6.** AXS weight profiles by content type.
-
-The rationale: **quick_answer** sessions are dominated by interaction flow (w3 = 0.50) because speed is everything for a simple question; the resolution gate is hard (beta = 1.0) because failing a trivial question is unacceptable. **guided_task** is the balanced default. **deep_session** has the highest stall freedom weight (w1 = 0.45) because a hang at turn 30 of a 40-turn session is devastating. **autonomous_workflow** is dominated by delivery quality (w2 = 0.50) because the agent is unsupervised and every decision must be correct.
-
-When reporting AXS across a mixed workload, compute content-type-specific AXS for each session, then average:
-```
-AXS_aggregate = (1/N) x SUM_i AXS_i(content_type_i)
-```
-
-### 6.5 Worked Example
-
-Consider a cohort of 1,000 `guided_task` sessions over one week:
-
-| Input Metric | Value |
-|--------------|-------|
-| Start success rate | 0.96 |
-| Fraction slow starts (TTFR > 10s) | 0.10 |
-| Stall ratio (cohort mean) | 0.08 |
-| Stall count (cohort mean) | 3.2 |
-| Tool success rate | 0.89 |
-| First-attempt correctness | 0.72 |
-| Error recovery failure rate | 0.15 |
-| Median TTFR | 3.5s |
-| Token gap ratio | 0.12 |
-| Median inter-turn latency | 8s |
-| Task completion rate | 0.81 |
-| Resolution quality proxy | 0.74 |
-| Abandonment rate | 0.12 |
-
-**Step 1: Compute sub-scores.**
-
-```
-S_start = 0.96 x (1 - 0.3 x 0.10) = 0.96 x 0.97 = 0.931
-
-S_stall_base = 1 - (0.08 / 0.20) = 0.600
-S_stall      = 0.600 x (1 - 0.3 x (3.2 / 10)) = 0.600 x 0.904 = 0.542
-
-S_del = 0.40 x 0.89 + 0.35 x 0.72 + 0.25 x 0.85
-      = 0.356 + 0.252 + 0.213 = 0.821
-
-S_flow = 0.40 x (1 - 3.5/15) + 0.25 x (1 - 0.12) + 0.35 x (1 - 8/30)
-       = 0.40 x 0.767 + 0.25 x 0.880 + 0.35 x 0.733
-       = 0.307 + 0.220 + 0.257 = 0.784
-
-S_res = 0.45 x 0.81 + 0.35 x 0.74 + 0.20 x 0.88
-      = 0.365 + 0.259 + 0.176 = 0.800
-```
-
-**Step 2: Compute G and Q** (guided_task: alpha = 1.0, beta = 0.8).
-
-```
-G = 0.931^1.0 x 0.800^0.8 = 0.931 x 0.842 = 0.784
-
-Q = 0.40 x 0.542 + 0.35 x 0.821 + 0.25 x 0.784
-  = 0.217 + 0.287 + 0.196 = 0.700
-```
-
-**Step 3: Compute AXS.**
-
-```
-AXS = 0.784 x 0.700 x 100 = 54.9
-```
-
-**Interpretation.** AXS 54.9 falls in the "Fair" range. Decomposition reveals:
-
-1. **Stall Freedom is the primary drag** (S_stall = 0.542). The 8% stall ratio with 3.2 stalls per session means users experience a stall roughly every 3 minutes of active work. Action: investigate stall causes via Model x Tool x Error Class dimensional slicing.
-
-2. **The gate score caps the ceiling** (G = 0.784). Even with perfect quality (Q = 1.0), AXS could not exceed 78.4. The 4% start failure rate and 81% task completion rate jointly suppress the maximum. Action: improve start reliability and resolution rate.
-
-3. **Interaction Flow is relatively healthy** (S_flow = 0.784). Median TTFR of 3.5s and inter-turn latency of 8s are adequate for guided tasks. This is not where to focus.
-
-### 6.6 Sensitivity Analysis
-
-To understand how AXS responds to changes, we compute partial sensitivities around the worked-example operating point (AXS 54.9, guided_task):
-
-| Change | AXS Impact | Sensitivity |
-|--------|------------|-------------|
-| Start success rate 0.96 -> 0.98 (+2pp) | 54.9 -> 56.1 | +1.2 per 2pp improvement |
-| Task completion rate 0.81 -> 0.90 (+9pp) | 54.9 -> 59.4 | +4.5 per 9pp improvement |
-| Stall ratio 0.08 -> 0.04 (halved) | 54.9 -> 62.3 | +7.4 for halving stall ratio |
-| Median TTFR 3.5s -> 1.5s (-2s) | 54.9 -> 56.0 | +1.1 for 2s TTFR reduction |
-| All metrics at "good" level | ~82 | Target for "Good" range |
-
-The largest lever is stall ratio --- halving it yields +7.4 points, confirming that the w1 = 0.40 weight for guided_task drives the right optimization incentive. TTFR improvements yield modest gains, consistent with interaction flow's lower weight (w3 = 0.25) for this content type. This analysis also demonstrates that AXS is not dominated by any single gate or quality component; meaningful improvement requires addressing multiple factors, which resists single-metric gaming.
-
-### 6.7 Scale Interpretation
-
-| AXS Range | Label | Interpretation | Action |
-|-----------|-------|----------------|--------|
-| 90--100 | **Excellent** | Reliable starts, consistent resolution, smooth interactions. Comparable to a senior engineer pair-programming with you. | Maintain. |
-| 75--89 | **Good** | Occasional hiccups but clear value. Users are satisfied and return. | Monitor for trends. |
-| 50--74 | **Fair** | Noticeable friction. Frequent stalls, partial resolutions, or inconsistent tool use. Users succeed but with effort. | Investigate. Drill into sub-scores and dimensions. |
-| 25--49 | **Poor** | Significant problems. Many sessions fail, stalls are common, trust erodes. | Urgent. Identify root cause within 24 hours. |
-| 0--24 | **Failing** | Not functional for intended purpose. Cascading failures, near-total inability to resolve. | Critical. Incident response. Consider rollback. |
-
-**Calibration anchor.** An AXS of 75 should correspond approximately to "a user who tried the agent would use it again tomorrow." This is analogous to Apdex 0.85 ("satisfied"), MOS 3.5 ("fair-to-good" boundary), and VMAF 80 (Netflix's "good quality" encoding threshold). We propose validating this anchor empirically in Paper-1 by correlating AXS with Return Rate (metric 5.7) and Net Satisfaction (metric 5.8).
-
-### 6.8 Comparison to Industry Composite Scores
-
-| Score | Domain | What Worked | What Didn't Work | What We Learn |
-|-------|--------|-------------|------------------|---------------|
-| **Apdex** | Web apps | Dead simple. Universal APM adoption. | Too crude --- a 3s response and a 12s response are both "tolerating." No component decomposition. | Simplicity drives adoption. AXS must be explainable in one paragraph, but with more gradient than three buckets. |
-| **MOS** | Voice | Grounded in subjective perception. ITU standardization. | Expensive to calibrate (requires human tests). Algorithmic proxies can diverge for novel codecs. Scale compression --- most scores fall in 3.0--4.5. | Ground AXS in user satisfaction data (Paper-1). Use the full 0--100 range, not a narrow band. |
-| **VMAF** | Video | Best-in-class correlation with human perception. Content-adaptive. | Opaque --- hard to explain why the score changed. Training data biases; not decomposable into actionable sub-scores. | Transparency matters. AXS components must be individually interpretable. Avoid ML-learned weights until sufficient user data exists. |
-| **Conviva Score** | Video ops | Real-time at-scale use. Dimensional slicing as core value. | Proprietary formula --- cannot reproduce, validate, or compare. Weights are opaque and tuned per-customer. Lock-in risk. | **Publish the formula. Open the weights.** Our strongest differentiator vs. proprietary scores. |
-
-### 6.9 Pitfalls and Mitigations
-
-**Goodhart's Law (Gaming).** Risk: teams optimize the score rather than the experience. Mitigation: the gated structure prevents inflating Q to compensate for low G. Rework Rate serves as a gaming detector --- high task completion with high rework indicates false completions. Sub-score decomposition is always published alongside AXS.
-
-**Simpson's Paradox (Masking).** Risk: aggregate AXS is stable while specific cohorts degrade, hidden by improvements elsewhere. Mitigation: always report AXS broken down by content type and at least one core dimension. Operational rule: never report aggregate AXS without a dimensional slice alongside it.
-
-**Apples to Oranges (Context-dependence).** Risk: comparing AXS across fundamentally different workloads. Mitigation: content-type-specific weights partially address this. For cross-organization comparison, we propose a normalized AXS adjusting for content-type mix, analogous to risk-adjusted returns in finance. Full specification deferred to Paper-1.
-
-**Threshold Sensitivity.** Risk: clamp/max parameters are design choices that affect score distribution. Mitigation: calibrate thresholds empirically from observed distributions (Paper-1). Publish all thresholds as a named configuration profile (e.g., "AXS-v1-2026") so scores are reproducible. Changing thresholds produces a new version, never a retroactive rewrite.
-
-**Temporal Aggregation.** Risk: averaging AXS over a week hides within-week variance. A Tuesday outage that cratered quality to AXS 20 for 4 hours may barely dent the weekly average. Mitigation: report AXS at multiple temporal granularities --- per-session, hourly, daily, weekly. Alert on hourly AXS drops exceeding a threshold (proposed: >15 points below trailing 24-hour average). The per-session AXS is always computable and stored; aggregation is a presentation choice, not a data-loss choice.
-
-**Cold Start.** Risk: a cohort with 3 sessions has high AXS variance. Mitigation: require minimum sample size (proposed: N >= 30) before reporting AXS for any dimensional slice.
-
----
-
-## 7. Illustrative Examples
-
-We present three scenarios that exercise the framework across different content types, showing the state machine in action, computing metrics at each phase, and calculating AXS. These examples use realistic timings, tool calls, and failure modes drawn from common agent interactions.
-
-### 7.1 Coding Agent: Guided Task
-
-**Scenario.** A developer asks Claude Code to add input validation to a REST API endpoint. The session unfolds as follows:
+**Scenario.** A developer asks Claude Code to add input validation to a REST API endpoint.
 
 ```
 t=0.0s    User: "Add input validation to the POST /users endpoint
@@ -721,75 +507,49 @@ t=35.1s   Agent: "Validation added. All 12 tests pass."
            [State: Ended (task_complete)]
 ```
 
-**Metric computation:**
+**Operational metrics:**
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| TTFR | 1.2s | Starting duration |
-| Stall Ratio | 15.6 / (18.3 + 15.6) = 0.460 | 15.6s stalled, 18.3s working (excl. 1.2s Starting) |
-| Stall Frequency | 4 | Four tool-call stalls |
-| Stall Duration p50 | 2.95s | Median of sorted [1.4, 2.1, 3.8, 8.3]: (2.1+3.8)/2 |
-| Progress Cadence | ~3 events/min | Steady output between stalls |
-| Interaction Frequency | 0 | No questions asked |
-| Steering Events | 0 | No corrections needed |
-| Task Completion | Yes | Agent signaled done, tests pass |
-| First-Attempt Success | Yes | Zero steering, task complete |
-| TTTC | 35.1s | Prompt to completion |
+| Metric | Value |
+|--------|-------|
+| Time to First Token | 1.2s |
+| Tokens per Session | ~2,400 |
+| Turns per Session | 1 |
+| Tool Calls per Session | 4 |
+| Duration per Session | 35.1s |
+| Errors per Session | 0 |
+| Tool Call Duration (median) | 2.95s |
+| Tool Success Rate | 100% |
+| Output Speed | ~45 tok/s (during Working) |
 
-**AXS Computation** (session-level, guided_task weights):
+**Experience pillar assessment:**
 
-```
-S_start = 1.0 (successful start, TTFR 1.2s < 10s SLO)
-S_stall = (1 - 0.460/0.20) -> clamped to 0 (ratio exceeds max)
-        = 0 x ... = 0   [Note: stall ratio 46% far exceeds 20% max]
-S_del   = 0.40 x 1.0 + 0.35 x 1.0 + 0.25 x 1.0 = 1.0
-S_flow  = 0.40 x (1 - 1.2/15) + 0.25 x 0.85 + 0.35 x (1 - 0/30) = 0.940
-S_res   = 0.45 x 1.0 + 0.35 x 1.0 + 0.20 x 1.0 = 1.0
+| Pillar | Assessment | Key Signals |
+|--------|-----------|-------------|
+| **Responsiveness** | Good | Time to First Token 1.2s is fast. Output Speed 45 tok/s is fluid. |
+| **Reliability** | Fair | Stall Ratio 46% (15.6s stalled / 33.9s active). Four stalls, one lasting 8.3s. The 8.3-second test-run stall is the primary concern. |
+| **Autonomy** | Excellent | Zero questions asked, zero corrections needed. Agent operated independently. |
+| **Correctness** | Excellent | Tests pass, output is well-formed, first-try success. |
+| **Completion** | Excellent | Task completed in 35.1s with no rework needed. |
 
-G = 1.0 x 1.0^0.8 = 1.0
-Q = 0.40 x 0.0 + 0.35 x 1.0 + 0.25 x 0.940 = 0.585
-AXS = 1.0 x 0.585 x 100 = 58.5
-```
+**Diagnosis.** Despite a successful first-attempt completion, the Reliability assessment reveals friction: the user spent nearly half the active session time waiting for tool calls. The 8.3-second pytest execution is the primary culprit. Slicing by Tool dimension reveals that Bash tool calls average 8.3s while Read tool calls average 1.75s. Action: optimize test execution (parallel tests, incremental testing) to reduce the longest stall.
 
-**Analysis.** Despite a successful first-attempt completion, this session scores only 58.5 ("Fair"). The stall ratio of 46% --- nearly half the active session time spent waiting for tool calls --- crushes the Stall Freedom score. The 8.3-second test-run stall is the primary culprit. This is the framework revealing something real: from the user's perspective, waiting 15.6 seconds out of a 33.9-second active window for tool calls is not a great experience, even though the outcome was correct.
-
-Now consider an improved version of the same agent with a faster test runner and parallel file reads:
+**Contrast: optimized version.** The same task with parallel file reads and a faster test runner:
 
 ```
 t=0.0s    User submits same task.              [State: Starting]
 t=0.8s    Agent begins streaming.              [State: Working]
-t=2.5s    Agent reads both files in parallel.  [State: Stalled (tool_call, 1.0s)]
+t=2.5s    Agent reads both files in parallel.  [State: Stalled (1.0s)]
 t=3.5s    Files returned. Agent streams plan.  [State: Working]
-t=7.0s    Agent edits file + runs tests.       [State: Stalled (tool_call, 2.5s)]
+t=7.0s    Agent edits file + runs tests.       [State: Stalled (2.5s)]
 t=9.5s    Tests pass. Agent streams summary.   [State: Working]
 t=13.5s   Agent: "Validation added."           [State: Ended (task_complete)]
 ```
 
-```
-Starting: 0.8s, Stalled: 3.5s (1.0 + 2.5), Working: 13.5 - 0.8 - 3.5 = 9.2s
-Stall Ratio: 3.5 / (9.2 + 3.5) = 3.5 / 12.7 = 0.276
-TTTC: 13.5s (62% faster), Stall count: 2 (vs 4)
-```
+The operational metrics shift dramatically: Stall Ratio drops from 46% to 28% (3.5s stalled / 12.7s active), Stall Count drops from 4 to 2, and Duration per Session drops from 35.1s to 13.5s (62% faster). The Reliability assessment improves from Fair to Good. The improvement is real and the framework captures it.
 
-```
-S_stall = (1 - 0.276/0.20) -> clamped to 0 still. Ratio exceeds 20% max.
-```
+### 8.2 Customer Support Bot: Quick Answer
 
-Even the optimized version exceeds the stall ratio max. This surfaces a calibration question: for coding agents, where tool calls are inherent to the task, the 20% stall ratio threshold may need content-type-specific tuning --- an explicit open question for Paper-1 (see Section 8).
-
-However, if we account for the fact that *expected* tool calls may be perceived differently from *unexpected* stalls, and adjust the threshold for coding tasks to 40%, the optimized agent scores:
-
-```
-S_stall = (1 - 0.276/0.40) x (1 - 0.3 x 2/10) = 0.310 x 0.94 = 0.291
-Q = 0.40 x 0.291 + 0.35 x 1.0 + 0.25 x 0.96 = 0.706
-AXS = 1.0 x 0.706 x 100 = 70.6
-```
-
-The difference between AXS 58.5 and 70.6 --- a jump from "Fair" to the upper end of "Fair," approaching "Good" --- captures the genuine improvement in user experience from faster tool execution and fewer interruptions.
-
-### 7.2 Customer Support Agent: Quick Answer
-
-**Scenario.** A customer asks a support agent: "What's your refund policy for annual subscriptions?"
+**Scenario.** A customer asks: "What's your refund policy for annual subscriptions?"
 
 ```
 t=0.0s    User: "What's your refund policy for annual subscriptions?"
@@ -810,66 +570,44 @@ t=5.8s    Agent: "...prorated refund within the first 30 days,
            [State: Ended (task_complete)]
 ```
 
-**Metric computation:**
+**Operational metrics:**
 
 | Metric | Value |
 |--------|-------|
-| TTFR | 0.6s |
-| Stall Ratio | 1.2 / (4.6 + 1.2) = 0.207 |
-| Stall Frequency | 1 |
-| Interaction Frequency | 0 |
-| Task Completion | Yes |
-| TTTC | 5.8s |
+| Time to First Token | 0.6s |
+| Duration per Session | 5.8s |
+| Tool Calls per Session | 1 |
+| Tool Call Duration | 1.2s |
+| Stall Ratio | 21% (1.2s / 5.8s) |
+| Errors | 0 |
 
-**AXS Computation** (session-level, quick_answer weights: w1=0.20, w2=0.30, w3=0.50, beta=1.0):
+**Experience pillar assessment:**
 
-```
-S_start = 1.0
-S_stall = (1 - 0.207/0.20) -> clamped: S_stall_base = 0, S_stall = 0
-S_del   = 1.0 (correct answer, no steering)
-S_flow  = 0.40 x (1 - 0.6/15) + 0.25 x 0.90 + 0.35 x 1.0 = 0.934
-S_res   = 1.0
+| Pillar | Assessment | Key Signals |
+|--------|-----------|-------------|
+| **Responsiveness** | Excellent | Time to First Token 0.6s. Total session 5.8s. For a quick answer, this is fast. |
+| **Reliability** | Good | One brief stall for KB retrieval. Acceptable for the interaction pattern. |
+| **Autonomy** | Excellent | No questions, no corrections. Answered directly. |
+| **Correctness** | Good | Accurate policy information. Well-structured response. |
+| **Completion** | Excellent | Task complete in 5.8s. Proactively offered next step. |
 
-G = 1.0 x 1.0 = 1.0
-Q = 0.20 x 0 + 0.30 x 1.0 + 0.50 x 0.934 = 0.767
-AXS = 1.0 x 0.767 x 100 = 76.7
-```
+**Diagnosis.** This is a healthy quick_answer session. The single KB retrieval stall (1.2s) is barely noticeable in context. For this content type, Responsiveness and Correctness dominate the assessment, and both are strong.
 
-The quick_answer weights save this session: despite a marginal stall ratio, stall freedom carries only 20% weight for quick answers (versus 40% for guided tasks). The user got a fast, correct answer in 5.8 seconds. The framework scores this as "Good" --- which aligns with the intuition that a single brief tool call during a fast answer is barely noticeable.
-
-Now consider a degraded version:
+**Contrast: degraded version.** Same question, but the agent is slow to start (4.2s Time to First Token), gives a vague answer, and the user must correct it:
 
 ```
-Same question, degraded agent:
 t=0.0s    User submits question.               [State: Starting]
 t=4.2s    Agent begins streaming (slow start).  [State: Working]
-t=5.0s    Agent calls KB retrieval.             [State: Stalled (tool_call, 3.5s)]
+t=5.0s    Agent calls KB retrieval.             [State: Stalled (3.5s)]
 t=8.5s    KB returns. Agent streams answer.     [State: Working]
 t=12.8s   Agent gives a vague, partially correct answer.
           User: "That doesn't sound right, can you check again?"
-          [Steering event — user corrects]
+          [Steering event]
 ```
 
-```
-Starting: 4.2s, Stalled: 3.5s, Working: 12.8 - 4.2 - 3.5 = 5.1s
-Stall Ratio: 3.5 / (5.1 + 3.5) = 3.5 / 8.6 = 0.407
+Operational metrics: Time to First Token 4.2s, Stall Duration 3.5s, User Corrections 1, First-Try Success Rate 0%. Experience assessment: Responsiveness degrades from Excellent to Fair (4.2s startup for a simple question is too slow). Correctness drops to Poor (wrong answer requiring correction). Autonomy drops to Fair (user had to correct). For a quick_answer content type, this is a poor experience --- the user could have found the policy page faster than waiting for this interaction.
 
-S_start = 1.0 (still started, but TTFR 4.2s is costly at quick_answer weights)
-S_stall_base = 1 - clamp(0.407 / 0.20, 0, 1) = 0   [ratio far exceeds 20% max]
-S_stall = 0
-S_del   = 0.40 x 1.0 + 0.35 x 0.0 + 0.25 x 1.0 = 0.650
-         (zero first-attempt correctness due to steering)
-S_flow  = 0.40 x (1 - 4.2/15) + 0.25 x 0.70 + 0.35 x (1 - 4/30) = 0.762
-S_res   = 0.45 x 0.5 + 0.35 x 0.5 + 0.20 x 1.0 = 0.600
-
-G = 1.0^1.0 x 0.600^1.0 = 0.600   [quick_answer: beta = 1.0, hard gate]
-Q = 0.20 x 0.0 + 0.30 x 0.650 + 0.50 x 0.762 = 0.576
-AXS = 0.600 x 0.576 x 100 = 34.6
-```
-
-AXS 34.6 --- "Poor." For a simple refund policy question, making the user wait 4.2 seconds, giving a wrong answer, and requiring a follow-up is a genuinely poor experience. The hard resolution gate (beta = 1.0 for quick_answer) penalizes heavily because there is no partial credit for failing to answer a simple question correctly.
-
-### 7.3 Autonomous Workflow: CI/CD Agent
+### 8.3 Autonomous CI/CD Agent: Autonomous Workflow
 
 **Scenario.** A developer instructs an agent: "Run the test suite, fix any failures, and open a PR." The agent operates autonomously for 12 minutes.
 
@@ -882,7 +620,7 @@ t=2.8s     Agent: "Starting test suite..."
             [State: Working]
 
 t=3.1s     Agent calls Bash: pytest --tb=short
-            [State: Stalled (tool_call)]
+            [State: Stalled (tool_call, 42.1s)]
 
 t=45.2s    Tests complete: 3 failures out of 247.
             [State: Working] Agent analyzes failures.
@@ -890,25 +628,8 @@ t=45.2s    Tests complete: 3 failures out of 247.
 t=48.0s    Agent calls Read on test_auth.py
             [State: Stalled (tool_call, 1.5s)]
 
-t=49.5s    [State: Working] Agent reasons about fix.
-
-t=55.0s    Agent calls Edit on auth/handler.py
-            [State: Stalled (tool_call, 2.2s)]
-
-t=57.2s    [State: Working]
-
-t=62.0s    Agent calls Edit on auth/middleware.py
-            [State: Stalled (tool_call, 1.8s)]
-
-t=63.8s    [State: Working]
-
-t=68.0s    Agent calls Bash: pytest test_auth.py
-            [State: Stalled (tool_call, 12.5s)]
-
-t=80.5s    Tests pass. Agent moves to next failure.
-            [State: Working]
-
-            ...similar pattern for 2 more failures...
+           ...agent reads files, edits code, reruns tests
+           for each of the 3 failures...
 
 t=680.0s   All 3 failures fixed. Agent runs full suite.
             [State: Stalled (tool_call, 42.1s)]
@@ -925,143 +646,115 @@ t=733.3s   Agent: "PR #142 opened. All 247 tests pass.
             [State: Ended (task_complete)]
 ```
 
-**Metric computation:**
+**Operational metrics:**
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| TTFR | 2.8s | |
-| Stall Ratio | ~0.65 | Heavy tool use is expected for autonomous work |
-| Stall Frequency | ~15 | Many tool calls across 12 minutes |
-| Interaction Frequency | 0 | Fully autonomous |
-| Steering Events | 0 | No human in the loop |
-| Task Completion | Yes | PR opened, all tests pass |
-| TTTC | 733.3s (~12.2 minutes) | |
-| Token Efficiency | Low | Many reasoning tokens for 3 edits |
+| Metric | Value |
+|--------|-------|
+| Time to First Token | 2.8s |
+| Duration per Session | 733.3s (~12.2 min) |
+| Tool Calls per Session | ~15 |
+| Stall Ratio | ~65% |
+| Errors | 0 (all retries succeeded) |
+| Turns | 1 (fully autonomous) |
 
-**AXS Computation** (autonomous_workflow weights: w1=0.15, w2=0.50, w3=0.35, beta=1.0):
+**Experience pillar assessment:**
 
-```
-S_start = 1.0
-S_stall = ~0 (ratio far exceeds 20% threshold)
-S_del   = 0.40 x 0.95 + 0.35 x 1.0 + 0.25 x 0.90 = 0.955
-S_flow  = 0.40 x (1 - 2.8/15) + 0.25 x 0.60 + 0.35 x 1.0 = 0.875
-S_res   = 0.45 x 1.0 + 0.35 x 0.95 + 0.20 x 1.0 = 0.983
+| Pillar | Assessment | Key Signals |
+|--------|-----------|-------------|
+| **Responsiveness** | N/A (autonomous) | The user is not watching in real-time. Responsiveness is deprioritized for autonomous workflows. |
+| **Reliability** | Good | Despite high stall ratio (65%), all tool calls succeeded, no errors, no retries failed. The high stall ratio reflects inherent tool-heaviness, not unreliability. |
+| **Autonomy** | Excellent | Zero questions, zero corrections. Fully autonomous operation. |
+| **Correctness** | Excellent | All 3 failures correctly diagnosed and fixed. All 247 tests pass. PR includes clear summary. |
+| **Completion** | Excellent | Task fully completed. PR opened. Clear deliverable. |
 
-G = 1.0 x 0.983^1.0 = 0.983
-Q = 0.15 x 0.0 + 0.50 x 0.955 + 0.35 x 0.875 = 0.784
-AXS = 0.983 x 0.784 x 100 = 77.1
-```
+**Diagnosis.** The 65% stall ratio would be alarming for a guided_task, but for an autonomous_workflow it is expected and acceptable --- the agent is inherently tool-heavy (running tests, reading files, editing code). The content-type system correctly deprioritizes Responsiveness and elevates Correctness and Completion for this interaction pattern. What matters is the outcome: all tests fixed, PR opened, 12 minutes of autonomous work that saved the developer 30-60 minutes of manual debugging.
 
-Despite an extremely high stall ratio (65%), this session scores 77.1 ("Good"). The autonomous_workflow weights assign only 15% to stall freedom --- the user is not watching in real-time, so stalls only matter insofar as they extend total runtime. What matters is whether the agent *delivered*: all tests fixed, PR opened, correct results. The framework correctly captures that for autonomous workflows, outcome quality dominates process quality.
+**Contrast: failed autonomous workflow.** Same task, but the agent fails to fix the third test failure after 5 retries, opens a PR with one test still failing, and does not mention it:
 
-This example highlights why content-type weighting is essential. Under guided_task weights, the same session would score much lower (the 65% stall ratio would devastate the score), which would be misleading --- the user explicitly delegated this work and is not sitting through the stalls.
-
-**Contrast with a failed autonomous workflow:**
-
-Same task, but the agent fails to fix the third test failure after 5 retries, opens a PR with one test still failing, and does not mention it:
-
-```
-S_del = 0.40 x 0.80 + 0.35 x 0.0 + 0.25 x 0.60 = 0.470
-       (first_attempt = 0 because result is wrong; recovery failures)
-S_res = 0.45 x 0.0 + 0.35 x 0.50 + 0.20 x 1.0 = 0.375
-       (task not completed: 1 test still failing)
-
-G = 1.0 x 0.375^1.0 = 0.375
-Q = 0.15 x 0.0 + 0.50 x 0.470 + 0.35 x 0.875 = 0.541
-AXS = 0.375 x 0.541 x 100 = 20.3
-```
-
-AXS 20.3 --- "Failing." The hard resolution gate (beta = 1.0 for autonomous workflows) correctly flags this as a critical failure. An autonomous agent that silently opens a PR with failing tests has betrayed the user's trust. The score reflects that severity.
+Operational metrics: Errors 5, Tool Success Rate drops, task_complete signal issued but one test still fails. Experience assessment: Correctness drops to Poor (silent failure --- the worst kind). Completion drops to Poor (task not actually complete despite the signal). Reliability drops to Fair (5 failed retries indicate a systematic problem). For an autonomous_workflow where Correctness and Completion are critical, this is a severe failure. The agent betrayed the user's trust by silently submitting broken code.
 
 ---
 
-## 8. Discussion and Future Work
+## 9. Discussion and Future Work
 
-### 8.1 Analogical "Money Numbers"
+### 9.1 Analogical "Money Numbers"
 
-Zhang et al.'s most-cited findings follow a formula: a human-readable quality change leads to a business-readable impact. "1% increase in buffering ratio leads to 3 minutes less viewing." "Join time exceeding 2 seconds costs 5.8% of viewers per additional second." These numbers get cited in investor decks because they translate technical metrics to business outcomes.
+Zhang et al.'s most-cited findings translate quality changes to business outcomes: "1% increase in buffering ratio leads to 3 minutes less viewing." "Join time exceeding 2 seconds costs 5.8% of viewers per additional second." These numbers get cited in investor decks because they bridge the gap between what engineers measure and what executives care about.
 
-We cannot produce empirical money numbers without data, but we can frame analogical predictions grounded in related research:
+We cannot produce empirical money numbers without data, but we can frame analogical predictions:
 
-*Back-of-envelope calculation.* If the average knowledge worker uses an AI agent 20 times per day, and average TTFR is 5 seconds versus an achievable 1.5 seconds, that is 70 seconds per day or over 6 hours per year of waiting --- per person. At an average loaded cost of $80/hour for a knowledge worker, that is approximately $500/year/person in productivity lost to start-up latency alone. For a 10,000-person enterprise, that is $5 million annually in a single metric.
+*Back-of-envelope calculation.* If the average knowledge worker uses an AI agent 20 times per day, and average Time to First Token is 5 seconds versus an achievable 1.5 seconds, that is 70 seconds per day or over 6 hours per year of waiting --- per person. At a loaded cost of $80/hour for a knowledge worker, that is approximately $500/year/person in productivity lost to startup latency alone. For a 10,000-person enterprise, that is $5 million annually in a single Responsiveness metric.
 
-*Stall impact projection.* In video, one buffering event reduces viewing time by approximately 39% compared to zero-buffering sessions [3]. Agent stalls are structurally similar: each stall breaks the user's problem-solving flow state, and flow state restoration has a fixed cognitive cost. We predict that sessions with zero stalls will have substantially higher task completion rates and lower abandonment than sessions with even one stall, and that the relationship will be concave (the first stall hurts the most).
+*Stall impact projection.* In video, one buffering event reduces viewing time by approximately 39% compared to zero-buffering sessions [3]. Agent stalls are structurally similar: each stall breaks the user's problem-solving flow state, and flow state restoration has a fixed cognitive cost (estimated at 15-25 minutes for deep work by Mark et al. [23]). We predict that sessions with zero stalls will have substantially higher task completion rates than sessions with even one stall, and that the relationship will be concave (the first stall hurts the most).
 
-### 8.2 Testable Predictions
+### 9.2 Testable Hypotheses
 
-We frame the following hypotheses for empirical validation in Paper-1:
+We frame the following hypotheses for empirical validation:
 
-**H1 (Start threshold).** TTFR exceeding 5 seconds increases Pre-Response Abandonment Rate by more than 20%, consistent with web response time research showing user attention breaks at 5--10 seconds [19, 20].
+**H1 (Start threshold).** Time to First Token exceeding 5 seconds increases Gave-Up Rate by more than 20%, consistent with web response time research showing user attention breaks at 5-10 seconds [19, 20].
 
-**H2 (Stall dominance).** Stall Ratio will be the single strongest predictor of Abandonment Rate, ahead of all other individual metrics --- paralleling Zhang's finding that buffering ratio was the #1 predictor of viewer disengagement.
+**H2 (Stall dominance).** Stall Ratio will be the single strongest predictor of Gave-Up Rate, ahead of all other individual metrics --- paralleling Zhang's finding that buffering ratio was the #1 predictor of viewer disengagement.
 
-**H3 (Frequency independence).** Stall Frequency will have an independent negative effect on task completion even after controlling for Stall Ratio, because each stall imposes a fixed attention-restoration cost --- paralleling Zhang's finding that rebuffering frequency independently predicts engagement loss.
+**H3 (Frequency independence).** Stall Count will have an independent negative effect on Task Completion Rate even after controlling for Stall Ratio, because each stall imposes a fixed attention-restoration cost --- paralleling Zhang's finding that rebuffering frequency independently predicts engagement loss.
 
-**H4 (Content type moderation).** The strength and direction of metric-to-outcome relationships will vary significantly by Agent Content Type. Specifically, TTFR will have the strongest effect for quick_answer sessions, Stall Ratio for guided_task and deep_session, and Task Completion Rate for autonomous_workflow.
+**H4 (Content type moderation).** The strength of metric-to-outcome relationships will vary significantly by content type. Specifically, Time to First Token will have the strongest effect for Quick Answer sessions, Stall Ratio for Guided Task and Deep Session, and Task Completion Rate for Autonomous Workflow.
 
-**H5 (First-attempt leverage).** First-Attempt Success Rate will be the strongest predictor of Return Rate (re-adoption), ahead of speed-related metrics. Users tolerate slowness more than they tolerate incorrectness.
+**H5 (Correctness over speed).** First-Try Success Rate will be the strongest predictor of Came Back Rate (re-adoption), ahead of speed-related metrics. Users tolerate slowness more than they tolerate incorrectness.
 
-**H6 (Coherence decay).** Turn-over-Turn Coherence will be negatively correlated with session length and positively correlated with context compaction events, indicating that context management is a key determinant of deep_session quality.
+**H6 (Coherence decay).** Quality Decay will be negatively correlated with session length and positively correlated with context compaction events, indicating that context management is a key determinant of Deep Session quality.
 
-### 8.3 Paper-1 Preview
+### 9.3 Composite Score: Future Work
 
-Paper-1 (empirical validation) will instrument real agent sessions at scale and test the predictions above. The research agenda includes:
+Following the trajectory from Zhang (2011) to Conviva SPI to ITU-T P.1203, a natural next step is a composite Agent Experience Score (AXS) that compresses the five-pillar assessment into a single 0-100 number. The composite would serve as an executive metric --- answering "how good?" and "is it trending up or down?" --- while the individual pillars provide diagnostic depth.
 
-1. **Weight calibration.** Derive AXS weights empirically via regression against user satisfaction signals (Return Rate, Net Satisfaction, retention).
-2. **Gate exponent tuning.** Determine whether alpha = 1.0 and beta = 0.8 are the right gate sensitivities. Specifically: does a 1% start failure rate feel twice as bad as a 1% non-resolution rate, or is the relationship non-linear?
-3. **Threshold discovery.** Replace proposed defaults (stall_ratio_max = 0.20, TTFR_max = 15s, etc.) with empirically grounded thresholds based on observed distributions and user satisfaction correlation.
-4. **Content type validation.** Verify the four content types via cluster analysis on real session telemetry, and determine whether the classification rules need refinement.
-5. **Money numbers.** Produce agent-specific versions of Zhang's headline findings: "Each additional stall event costs X% task completion probability."
-6. **Subjective validation.** Correlate AXS with human-rated experience quality. Target: Pearson r >= 0.7 (comparable to early VMAF validation).
+We propose AXS as future work for three reasons. First, a composite score requires empirical weight calibration: how much does each pillar contribute to overall perceived quality? Zhang derived his engagement weights from 40 million video views; we need comparable data from real agent sessions. Second, the content-type weight adaptation (which pillars matter most for which interaction patterns) must be validated through cluster analysis on real telemetry. Third, composite scores carry known risks (Goodhart's Law, Simpson's Paradox, threshold sensitivity) that are better addressed with empirical grounding than a priori design.
 
-### 8.4 Limitations
+The trajectory is clear: define the state machine and metrics (this paper), validate with real data (Paper-1), then derive the composite (Paper-2). Conviva took this path: Zhang's metrics came first, the SPI composite came years later, after the individual metrics were proven.
 
-We acknowledge several limitations of this work:
+### 9.4 Paper-1 Preview
 
-**No empirical validation.** This paper defines a measurement framework; it does not validate it with data. The metrics are grounded in analogical reasoning from video QoE and first principles about user experience, but the specific thresholds, weights, and predictions are hypotheses, not findings. Paper-1 is designed to address this gap.
+Paper-1 (empirical validation) will instrument real agent sessions at scale and test the hypotheses above. The research agenda includes:
 
-**Threshold arbitrariness.** Parameters such as stall_ratio_max = 0.20, TTFR_SLO = 10s, and stall_count_max = 10 are educated guesses informed by web UX research and domain intuition. They may prove too lenient or too strict for specific agent types. We explicitly mark these as configurable and version-controlled.
+1. **Weight discovery.** Determine the empirical relationship between each experience pillar and user satisfaction signals (Came Back Rate, explicit feedback, task success).
+2. **Threshold discovery.** Replace proposed defaults with empirically grounded thresholds based on observed distributions and user perception studies.
+3. **Content type validation.** Verify the four content types via cluster analysis on real session telemetry.
+4. **Money numbers.** Produce agent-specific versions of Zhang's headline findings.
+5. **Subjective validation.** Correlate framework assessments with human-rated experience quality. Target: Pearson r >= 0.7 (comparable to early VMAF validation).
 
-**L4 metric dependency.** Four metrics (Delivery Quality Score, Steering Recovery Time, Net Satisfaction, Turn-over-Turn Coherence) require an evaluation judge --- a significant instrumentation burden. The framework is designed to function without L4 metrics (using L2 proxies), but full precision requires evaluation infrastructure that many organizations do not yet have.
+### 9.5 Limitations
 
-**Single-agent scope.** The framework models single-agent sessions. Multi-agent orchestration (Agent A delegates to Agent B) introduces composability questions: is the sub-agent call a Stalled episode or a nested session? We define the boundary --- if the sub-agent's output is not streamed to the user, it is a tool call; if it is, it is a nested session --- but a full treatment of multi-agent composability is deferred to future work.
+**No empirical validation.** This paper defines a measurement framework; it does not validate it with data. The metrics are grounded in analogical reasoning from video QoE and cross-domain research, but the specific predictions are hypotheses, not findings.
 
-### 8.5 Open Questions
+**L4 metric dependency.** Three metrics (Output Quality Score, Quality Decay, and some aspects of User Corrections detection) require an evaluation judge --- a significant instrumentation burden. The framework is designed to function without L4 metrics using L2 proxies, but full precision requires evaluation infrastructure.
 
-**Stall threshold calibration.** For L1 (client-only) observation, how long must the output stream pause before we declare a Stalled state? Too short (200ms) triggers false stalls during normal generation. Too long (5s) undercounts real stalls. This likely needs empirical calibration with user perception studies.
+**Single-agent scope.** The framework models single-agent sessions. Multi-agent orchestration introduces composability questions: is the sub-agent call a Stalled episode or a nested session? We define the boundary --- if the sub-agent's output is not streamed to the user, it is a tool call; if it is, it is a nested session --- but a full treatment of multi-agent composability is deferred.
 
-**Gate exponent tuning.** Are alpha = 1.0 and beta = 0.8 the right gate sensitivities? Empirical data on how start failures and non-resolution affect overall perceived quality will determine this. Specifically: does a 1% start failure rate feel twice as bad as a 1% non-resolution rate, or is the relationship non-linear? The current exponents are principled defaults, but the sensitivity analysis (Section 6.6) shows that the gate significantly shapes AXS behavior, making calibration a priority for Paper-1.
+**Stall threshold calibration.** For client-only observation, how long must the output stream pause before we declare a Stalled state? Too short (200ms) triggers false stalls during normal generation. Too long (5s) undercounts real stalls. Empirical calibration is needed.
 
-**Steering detection.** Identifying when a user message is a correction versus a continuation is non-trivial without semantic analysis. Simple heuristics ("no", "actually", "I meant") may suffice for L1 instrumentation; framework-level signals (`user_interrupt` vs. `user_continue`) would improve precision at L2.
+**Steering detection.** Identifying when a user message is a correction versus a continuation is non-trivial without semantic analysis. Simple heuristics may suffice for initial instrumentation; framework-level signals would improve precision.
 
-**Multi-agent composability.** As agent-to-agent delegation becomes common, the framework needs a formal composition model. We hypothesize that the state machine composes recursively: each sub-agent instantiates its own state machine, and the parent agent treats the sub-session as either a tool call (Stalled, if not user-visible) or a nested session (if user-visible).
+### 9.6 Open Questions
 
-**Domain-specific weight profiles.** The four content types may not capture all relevant variation. A coding agent and a customer support agent have structurally different task profiles even within the same content type. Domain-specific weight profiles may be needed, and the dimension system (D4: Task) provides the slicing infrastructure to develop them.
-
-### 8.6 Vision
-
-Just as Zhang et al.'s player state machine and quality metrics became the shared vocabulary for how the streaming industry measures video quality, we intend this framework to become the shared vocabulary for agent experience quality. The transformation we envision:
-
-- **Before:** "The agent responded in 2.3 seconds with 95% eval accuracy."
-- **After:** "The user received a first response in 0.8s, perceived continuous progress throughout, completed their task on the first attempt without steering corrections, and the interaction required 40% less effort than the manual alternative. AXS: 87."
-
-The first statement describes what the system did. The second describes what the user experienced. The difference is the measurement standard this paper proposes.
+1. **Domain-specific pillar weights.** The four content types may not capture all relevant variation. A coding agent and a customer support agent have structurally different profiles even within the same content type.
+2. **Multi-agent composability.** As agent-to-agent delegation becomes common, the framework needs a formal composition model.
+3. **Temporal aggregation.** Averaging metrics over a week hides within-week variance. A Tuesday outage that cratered quality for 4 hours may barely dent the weekly average. Multi-granularity reporting (per-session, hourly, daily) is needed.
+4. **The "expected stall" problem.** Coding agents inherently make many tool calls. Should expected stalls (the agent chose to read a file) be weighted differently from unexpected stalls (the model hung for 30 seconds)?
 
 ---
 
-## 9. Conclusion
+## 10. Conclusion
 
-We have presented the Agent Experience (AX) framework, a formal metrics standard for measuring the quality of AI agent interactions. Our contributions are:
+We have presented the Agent Experience (AX) framework, a two-layer metrics standard for measuring the quality of AI agent interactions. Our contributions are:
 
 1. An **agent session state machine** with six states that captures the full lifecycle of an agent interaction, extending Zhang et al.'s player state machine with a Waiting state for bidirectional interaction and enriched Stalled semantics for tool use and error recovery.
 
-2. A **metrics taxonomy** of 29 quality metrics across five experience phases, each formally derived from observable states and transitions, classified by observability level for progressive adoption.
+2. A **two-layer metrics architecture** separating operational metrics (objective, per-event and per-session measurements for engineering teams) from experience metrics organized into five orthogonal quality pillars --- Responsiveness, Reliability, Autonomy, Correctness, and Completion --- each answering a distinct user question and grounded in cross-domain research.
 
-3. A **diagnostic dimension system** of 11 dimensions enabling fault isolation, cohort comparison, and content-type-aware analysis.
+3. A **content-type system** with four agent interaction patterns that modulates which experience pillars matter most, following Zhang's finding that content type moderates quality-engagement relationships.
 
-4. The **Agent Experience Score (AXS)**, a gated multiplicative-additive composite with an open, published formula, content-type weight adaptation, and principled resistance to gaming and masking.
+The core insight is the two-layer separation. Operational metrics tell you what changed. Experience metrics tell you whether users care. The bridge between them --- deriving experience assessments from operational measurements --- transforms raw telemetry into actionable quality intelligence.
 
-The framework is grounded in three forms of rigor: formal (every metric derived from the state machine), analogical (structural parallels to the video QoE framework that transformed streaming), and practical (every metric tied to observable events and classified by instrumentation requirement). We have demonstrated the framework through three worked examples spanning coding agents, customer support agents, and autonomous workflows.
+The framework is grounded in three forms of rigor: formal (every metric derived from the state machine), analogical (structural parallels to the video QoE framework that transformed streaming, validated across seven QoE domains), and practical (every metric tied to observable events and classified by instrumentation requirement).
 
 AI agents are at the inflection point that video streaming reached in 2010: enormous and growing, but measured in fragmented, implementation-centric ways that miss what matters most --- the user's experience. We release this framework as an open specification and invite the community to validate, calibrate, and adopt it. The metrics are defined. The state machine is running. What remains is to measure.
 
@@ -1090,88 +783,60 @@ event: user_cancel          { session_id, timestamp, current_state }
 event: session_end          { session_id, timestamp, end_reason }
 ```
 
-Each event carries session-level dimension attributes (D1--D5) as labels. Extended dimension attributes (D6--D8) are attached when available.
+Each event carries session-level dimension attributes (Agent, Model, Interface, Task, Session Type) as labels. Extended dimension attributes (Tool, Context, User) are attached when available.
 
 ---
 
-## Appendix B: Full Metric Reference Table
+## Appendix B: Full Metric Reference
 
-| # | Metric | Phase | Type | Unit | Observability | Zhang Analogue |
-|---|--------|-------|------|------|---------------|----------------|
-| 1.1 | Time to First Response (TTFR) | Initiation | histogram | seconds | L1 | Join Time |
-| 1.2 | Start Failure Rate | Initiation | rate | % | L2 | Join Failure Rate |
-| 1.3 | Pre-Response Abandonment Rate | Initiation | rate | % | L1 | Abandonment Before Start |
-| 1.4 | Start Retry Rate | Initiation | rate | % | L2 | *(new)* |
-| 2.1 | Stall Ratio | Progress | gauge | % | L1*/L2 | Buffering Ratio |
-| 2.2 | Stall Frequency | Progress | counter | count/session | L2 | Rebuffering Frequency |
-| 2.3 | Stall Duration Distribution | Progress | histogram | seconds | L1 | Rebuffering Duration |
-| 2.4 | Progress Cadence | Progress | gauge | events/min | L1 | Bitrate |
-| 2.5 | Perceived Throughput | Progress | gauge | tokens/s | L1 | Video Bitrate |
-| 2.6 | Output Fidelity Rate | Progress | rate | % | L2 | Rendering Quality |
-| 3.1 | Interaction Frequency | Interaction | counter | count/session | L2 | *(new)* |
-| 3.2 | Wait Duration Distribution | Interaction | histogram | seconds | L1 | *(new)* |
-| 3.3 | Resumption Latency | Interaction | histogram | seconds | L1 | *(rebuffer-exit)* |
-| 3.4 | Steering Event Count | Interaction | counter | count/session | L1 | *(new)* |
-| 3.5 | Steering Recovery Time | Interaction | histogram | seconds | L4 | *(new)* |
-| 3.6 | Interaction Overhead Ratio | Interaction | gauge | % | L3 | *(new)* |
-| 4.1 | Task Completion Rate | Delivery | rate | % | L2 | *(new)* |
-| 4.2 | First-Attempt Success Rate | Delivery | rate | % | L3 | *(new)* |
-| 4.3 | Delivery Quality Score | Delivery | gauge | 0--1 | L4 | Perceptual Quality |
-| 4.4 | Rework Rate | Delivery | rate | % | L3 | *(new)* |
-| 4.5 | Partial Delivery Rate | Delivery | rate | % | L3 | *(new)* |
-| 4.6 | Token Efficiency Ratio | Delivery | gauge | ratio | L2 | *(new)* |
-| 5.1 | Time to Task Completion | Resolution | histogram | seconds | L1 | Session Duration |
-| 5.2 | Session Duration | Resolution | histogram | seconds | L1 | Session Duration |
-| 5.3 | User Attention Ratio | Resolution | gauge | % | L3 | *(new)* |
-| 5.4 | Leverage Ratio | Resolution | gauge | ratio | L3 | *(new)* |
-| 5.5 | Abandonment Rate | Resolution | rate | % | L1 | Abandonment Rate |
-| 5.6 | Abandonment Phase | Resolution | histogram | categorical | L1 | *(new)* |
-| 5.7 | Return Rate | Resolution | rate | % | L1 | *(new)* |
-| 5.8 | Net Satisfaction | Resolution | gauge | -1 to +1 | L4 | *(QoE equivalent)* |
-| 5.9 | Turn-over-Turn Coherence | Resolution | gauge | 0--1 | L4 | *(bitrate decay)* |
+### B.1 Operational Metrics
 
-*Stall Ratio at L1 uses a client-side heuristic (output gap > threshold). At L2 it uses explicit tool-call events. Both are valid; L2 is more precise.*
+| # | Metric | Scope | Unit | State Mapping |
+|---|--------|-------|------|---------------|
+| O1 | Tokens per Session | session | count | Cross-session |
+| O2 | Turns per Session | session | count | Working episodes |
+| O3 | Tool Calls per Session | session | count | Working -> Stalled (tool_call) |
+| O4 | Duration per Session | session | seconds | Starting -> Ended/Failed |
+| O5 | Errors per Session | session | count | Error events |
+| O6 | Time to First Token | event | seconds | Duration of Starting |
+| O7 | Tokens per Turn | event | count | Within Working |
+| O8 | Tool Call Duration | event | seconds | Duration of Stalled (tool_call) |
+| O9 | Tool Success Rate | event | % | Stalled -> Working vs. Failed |
+| O10 | Retry Count | event | count | Within Stalled (retry) |
+| O11 | Stall Duration | event | seconds | Duration of Stalled |
+| O12 | Output Speed | event | tokens/s | Within Working |
+| O13 | Resume Speed | event | seconds | Waiting -> Working |
+
+### B.2 Experience Metrics
+
+| # | Metric | Pillar | Unit | Observability |
+|---|--------|--------|------|---------------|
+| R1 | Time to First Token | Responsiveness | seconds | L1 |
+| R2 | Output Speed | Responsiveness | tokens/s | L1 |
+| R3 | Resume Speed | Responsiveness | seconds | L1 |
+| R4 | Time per Turn | Responsiveness | seconds | L1 |
+| Re1 | Start Failure Rate | Reliability | % | L2 |
+| Re2 | Stall Ratio | Reliability | % | L1/L2 |
+| Re3 | Stall Count | Reliability | count | L2 |
+| Re4 | Average Stall Duration | Reliability | seconds | L1 |
+| Re5 | Error Rate | Reliability | count | L2 |
+| Re6 | Hidden Retries | Reliability | count | L2 |
+| A1 | Questions Asked | Autonomy | count | L2 |
+| A2 | User Corrections | Autonomy | count | L1 |
+| A3 | First-Try Success Rate | Autonomy | % | L3 |
+| A4 | User Active Time % | Autonomy | % | L3 |
+| A5 | Work Multiplier | Autonomy | ratio | L3 |
+| Co1 | Output Quality Score | Correctness | 0-1 | L4 |
+| Co2 | Clean Output Rate | Correctness | % | L2 |
+| Co3 | Quality Decay | Correctness | 0-1 | L4 |
+| Co4 | Useful Token % | Correctness | % | L2 |
+| Cm1 | Task Completion Rate | Completion | % | L2 |
+| Cm2 | Redo Rate | Completion | % | L3 |
+| Cm3 | Gave-Up Rate | Completion | % | L1 |
+| Cm4 | Where They Gave Up | Completion | categorical | L1 |
+| Cm5 | Time to Done | Completion | seconds | L1 |
+| Cm6 | Came Back Rate | Completion | % | L1 |
+
+**Observability levels:** L1 = client-side timestamps only. L2 = agent framework events. L3 = derived from L1+L2. L4 = requires evaluation judge.
 
 ---
-
-## References
-
-[1] Markets and Markets. "AI Agent Market Size and Growth Projections." 2025. *Note: Market projection cited as illustrative; exact figures should be verified against the published report at time of submission.*
-
-[2] McKinsey & Company. "The State of AI in 2025: Enterprise Adoption Survey." 2025. *Note: Adoption figure cited as illustrative; exact figures should be verified against the published report at time of submission.*
-
-[3] F. Dobrian, V. Sekar, A. Zia, M. Zimmer, J. Jiang, I. Stoica, H. Zhang. "Understanding the Impact of Video Quality on User Engagement." Proc. ACM SIGCOMM, 2011.
-
-[4] LangSmith. https://smith.langchain.com/
-
-[5] Langfuse. https://langfuse.com/
-
-[6] Datadog LLM Observability. https://www.datadoghq.com/product/llm-observability/
-
-[7] New Relic AI Monitoring. https://newrelic.com/platform/ai-monitoring
-
-[8] Helicone. https://helicone.ai/
-
-[9] Portkey. https://portkey.ai/
-
-[10] AgentOps. https://agentops.ai/
-
-[11] C. E. Jimenez et al. "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?" Proc. ICLR, 2024.
-
-[12] S. Zhou et al. "WebArena: A Realistic Web Environment for Building Autonomous Agents." Proc. ICLR, 2024.
-
-[13] Arize AI / Phoenix. https://arize.com/
-
-[14] Google. "Web Vitals." https://web.dev/vitals/
-
-[15] Google. "RAIL Performance Model." https://web.dev/rail/
-
-[16] ITU-T Recommendation P.800. "Methods for Subjective Determination of Transmission Quality."
-
-[17] Apdex Alliance. "Application Performance Index." https://www.apdex.org/
-
-[18] Z. Li et al. "Toward A Practical Perceptual Video Quality Metric." Netflix Technology Blog, 2016.
-
-[19] J. Nielsen. "Response Times: The 3 Important Limits." Nielsen Norman Group, 1993.
-
-[20] W. J. Doherty and R. P. Kelisky. "Managing VM/CMS Systems for User Effectiveness." IBM Systems Journal, 1979.
