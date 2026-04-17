@@ -4,6 +4,7 @@ import { DemoChart } from '@/components/DemoChart'
 import { DashboardShell } from '@/components/DashboardShell'
 import { HeroKpiRow } from '@/components/HeroKpiRow'
 import { PillarHealthRow } from '@/components/PillarHealthRow'
+import { TrendsRow } from '@/components/TrendsRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -23,7 +24,12 @@ function App() {
           <PillarHealthRow />
         </div>
 
-        {/* DemoChart stays below as a smoke test until DASH-5+ replaces it. */}
+        {/* DASH-5: trends row — 4 timeline charts (sessions, tokens, TTFT, stall). */}
+        <div className="mt-6">
+          <TrendsRow />
+        </div>
+
+        {/* DemoChart stays below as a smoke test until it's retired. */}
         <div className="mt-6 max-w-3xl">
           <DemoChart />
         </div>
