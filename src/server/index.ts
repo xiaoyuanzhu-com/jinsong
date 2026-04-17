@@ -220,6 +220,30 @@ export async function startLiveServer(
         // one pass — O(events) total, bounded by the existing events table.
         const toolRows = storage.queryToolCallStartRows();
         const toolCategoryBySession = new Map<string, Record<string, number>>();
+        // DASH-7: per-session, per-tool call counts ("calls" on tool_stats).
+        // We count calls from `tool_call_start` (authoritative for "how many
+        // times did the agent invoke this tool"), so pending calls still
+        // count toward the call total even if no end arrived.
+        const toolStatsBySession = new Map<
+          string,
+          Record<string, { calls: number; successes: number; failures: number }>
+        >();
+        function getToolBucket(
+          sid: string,
+          tool: string,
+        ): { calls: number; successes: number; failures: number } {
+          let perSession = toolStatsBySession.get(sid);
+          if (!perSession) {
+            perSession = {};
+            toolStatsBySession.set(sid, perSession);
+          }
+          let b = perSession[tool];
+          if (!b) {
+            b = { calls: 0, successes: 0, failures: 0 };
+            perSession[tool] = b;
+          }
+          return b;
+        }
         for (const r of toolRows) {
           const cat = r.tool_category ?? inferToolCategoryFallback(r.tool_name);
           let bucket = toolCategoryBySession.get(r.session_id);
@@ -228,12 +252,25 @@ export async function startLiveServer(
             toolCategoryBySession.set(r.session_id, bucket);
           }
           bucket[cat] = (bucket[cat] ?? 0) + 1;
+          getToolBucket(r.session_id, r.tool_name).calls += 1;
+        }
+
+        // DASH-7: success/failure counts from tool_call_end. Success rate is
+        // `successes / (successes + failures)` (pending calls — start without
+        // end — are excluded from the denominator). `calls` on the merged
+        // shape below mirrors the start-count, so UI can also show "N calls".
+        const toolEndRows = storage.queryToolCallEndRows();
+        for (const r of toolEndRows) {
+          const b = getToolBucket(r.session_id, r.tool_name);
+          if (r.status === 'success') b.successes += 1;
+          else b.failures += 1;
         }
 
         const rows = sessions.map(s => ({
           session: s,
           metrics: metricsBySession.get(s.session_id) ?? null,
           tool_category_counts: toolCategoryBySession.get(s.session_id) ?? {},
+          tool_stats: toolStatsBySession.get(s.session_id) ?? {},
         }));
         json(res, 200, { sessions: rows });
       } catch (err) {

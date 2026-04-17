@@ -53,6 +53,21 @@ export interface SessionMetrics {
   comp_task_completion_rate: number
 }
 
+/**
+ * Per-tool call counts for a single session. `calls` comes from
+ * `tool_call_start` (authoritative call count — pending calls included).
+ * `successes` / `failures` come from `tool_call_end`; their sum can be less
+ * than `calls` when some invocations are still pending (no end event yet).
+ *
+ * Success rate is computed over completed calls only:
+ * `successes / (successes + failures)`.
+ */
+export interface ToolStats {
+  calls: number
+  successes: number
+  failures: number
+}
+
 export interface SessionRow {
   session: Session
   metrics: SessionMetrics | null
@@ -63,6 +78,12 @@ export interface SessionRow {
    * as "no data yet" and render the donut's empty state.
    */
   tool_category_counts?: Record<string, number>
+  /**
+   * Per-session, per-tool call stats. Added in DASH-7 for the Tool
+   * Performance row. `undefined` on older server builds → UI shows empty
+   * state.
+   */
+  tool_stats?: Record<string, ToolStats>
 }
 
 interface SessionsResponse {

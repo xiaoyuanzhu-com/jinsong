@@ -6,6 +6,7 @@ import { HeroKpiRow } from '@/components/HeroKpiRow'
 import { PillarHealthRow } from '@/components/PillarHealthRow'
 import { TrendsRow } from '@/components/TrendsRow'
 import { DistributionsRow } from '@/components/DistributionsRow'
+import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -33,6 +34,11 @@ function App() {
         {/* DASH-6: distributions row — 3 donut charts (content, end reason, tool). */}
         <div className="mt-6">
           <DistributionsRow />
+        </div>
+
+        {/* DASH-7: tool performance row — 2 horizontal bar charts. */}
+        <div className="mt-6">
+          <ToolPerformanceRow />
         </div>
 
         {/* DemoChart stays below as a smoke test until it's retired. */}

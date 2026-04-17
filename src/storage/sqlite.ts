@@ -303,6 +303,36 @@ export class SQLiteStorage implements StorageAdapter {
     return out;
   }
 
+  /**
+   * Return (session_id, tool_name, status) rows from every `tool_call_end`
+   * event. Used together with `queryToolCallStartRows()` to build per-tool
+   * success-rate stats for the DASH-7 Tool Performance row. Sessions where a
+   * start has no matching end (crash / still running) are NOT represented
+   * here — the server-side merge treats them as "pending" and excludes them
+   * from the success-rate denominator.
+   */
+  queryToolCallEndRows(): Array<{ session_id: string; tool_name: string; status: string }> {
+    const rows = this.db
+      .prepare("SELECT session_id, payload FROM events WHERE event_type = 'tool_call_end'")
+      .all() as Array<{ session_id: string; payload: string }>;
+    const out: Array<{ session_id: string; tool_name: string; status: string }> = [];
+    for (const r of rows) {
+      try {
+        const p = JSON.parse(r.payload) as { tool_name?: string; status?: string };
+        if (typeof p.tool_name === 'string' && typeof p.status === 'string') {
+          out.push({
+            session_id: r.session_id,
+            tool_name: p.tool_name,
+            status: p.status,
+          });
+        }
+      } catch {
+        // Skip malformed payloads.
+      }
+    }
+    return out;
+  }
+
   getSessionCount(): number {
     const row = this.db.prepare('SELECT COUNT(*) as cnt FROM sessions').get() as { cnt: number };
     return row.cnt;
