@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { DemoChart } from '@/components/DemoChart'
 import { DashboardShell } from '@/components/DashboardShell'
 import { HeroKpiRow } from '@/components/HeroKpiRow'
+import { PillarHealthRow } from '@/components/PillarHealthRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -16,6 +17,11 @@ function App() {
       <DashboardShell>
         {/* DASH-3: hero KPI row — six summary cards with sparklines. */}
         <HeroKpiRow />
+
+        {/* DASH-4: pillar health row — five cards, one per AX pillar. */}
+        <div className="mt-6">
+          <PillarHealthRow />
+        </div>
 
         {/* DemoChart stays below as a smoke test until DASH-5+ replaces it. */}
         <div className="mt-6 max-w-3xl">
