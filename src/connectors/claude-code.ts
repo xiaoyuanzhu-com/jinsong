@@ -1,4 +1,5 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, basename, extname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import type { AgentEvent, EventType } from '../types.js';
@@ -152,6 +153,7 @@ function convertSession(filePath: string): AgentEvent[] {
     if (!sessionStartTs) sessionStartTs = ts;
     sessionEndTs = ts;
 
+    if (typeof msg.type !== 'string') continue;
     const msgType = msg.type.toLowerCase();
 
     // ─── USER messages ─────────────────────────────────────────────────
@@ -364,7 +366,7 @@ function convertSession(filePath: string): AgentEvent[] {
 
   // ─── Emit task_complete if last assistant had end_turn ──────────────────
   const lastAssistant = [...messages].reverse().find(
-    m => m.type.toLowerCase() === 'assistant' && m.message?.stop_reason === 'end_turn'
+    m => typeof m.type === 'string' && m.type.toLowerCase() === 'assistant' && m.message?.stop_reason === 'end_turn'
   );
   if (lastAssistant && sessionEndTs) {
     // Check there's meaningful text output (not just tool calls)
@@ -508,5 +510,17 @@ export const connector: Connector = {
     }
 
     return sessions;
+  },
+
+  discover(): string[] {
+    const root = join(homedir(), '.claude', 'projects');
+    if (!existsSync(root)) return [];
+    return findJsonlFiles(root).filter(f => {
+      try {
+        return isClaudeCodeJsonl(f);
+      } catch {
+        return false;
+      }
+    });
   },
 };

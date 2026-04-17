@@ -81,4 +81,6 @@ export const connector: Connector = {
 
     return Array.from(sessionMap.values());
   },
+
+  discover: () => [], // native JSON has no canonical location
 };

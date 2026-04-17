@@ -13,6 +13,13 @@ export interface Connector {
 
   /** Read the file/directory and return Jinsong events (one array per session). */
   convert(path: string): AgentEvent[][];
+
+  /**
+   * Discover session files on this machine in the connector's default
+   * location(s). Returns paths to individual session files, each of which
+   * can be passed to convert(). Returns [] if nothing found or not applicable.
+   */
+  discover(): string[];
 }
 
 /**

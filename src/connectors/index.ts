@@ -35,3 +35,10 @@ export function getConnector(name: string): Connector | null {
 export function listConnectors(): string[] {
   return connectors.map(c => c.name);
 }
+
+/**
+ * Return all registered connectors.
+ */
+export function getAllConnectors(): Connector[] {
+  return connectors;
+}

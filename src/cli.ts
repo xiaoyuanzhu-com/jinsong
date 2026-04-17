@@ -2,11 +2,14 @@ import { Command } from 'commander';
 import { resolve, join } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { SQLiteStorage } from './storage/sqlite.js';
 import { importJsonFile } from './ingest/json.js';
 import { generateReport } from './report/generate.js';
 import { detectConnector, getConnector, listConnectors } from './connectors/index.js';
 import { computeMetrics } from './compute/metrics.js';
+import { discoverAndImport } from './discover.js';
+import { startLiveServer } from './server/index.js';
 import type { AgentEvent } from './types.js';
 
 function getDbPath(): string {
@@ -102,12 +105,110 @@ function importWithConnector(
   return { totalEvents, sessionsProcessed, errors };
 }
 
+function openBrowser(url: string): void {
+  const platform = process.platform;
+  const cmd =
+    platform === 'darwin' ? 'open' :
+    platform === 'win32' ? 'start' :
+    'xdg-open';
+  try {
+    const child = spawn(cmd, [url], { stdio: 'ignore', detached: true, shell: platform === 'win32' });
+    child.unref();
+  } catch {
+    // ignore — user can click the URL instead
+  }
+}
+
+async function runServe(opts: { db?: string; port?: string; noOpen?: boolean; noScan?: boolean }): Promise<void> {
+  const dbPath = opts.db ?? getDbPath();
+  const port = opts.port ? parseInt(opts.port, 10) : 4317;
+  const storage = new SQLiteStorage(dbPath);
+
+  const server = await startLiveServer(storage, port);
+  console.log(`Jinsong running at ${server.url}`);
+  console.log(`  Database: ${dbPath}`);
+  console.log(`  Press Ctrl+C to stop`);
+
+  // Auto-open browser if stdin is a TTY (skip in CI / ssh sessions)
+  if (!opts.noOpen && process.stdin.isTTY) {
+    openBrowser(server.url);
+  }
+
+  const status = {
+    discovered: 0,
+    processed: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  if (!opts.noScan) {
+    discoverAndImport(storage, {
+      onDiscovered(jobs) {
+        status.discovered = jobs.length;
+        server.setStatus({ discovered: jobs.length, scanning: true });
+        console.log(`  Discovered ${jobs.length} session file(s)`);
+      },
+      onSessionImported(imported) {
+        status.processed++;
+        server.broadcast('session', {
+          session: imported.session,
+          metrics: imported.metrics,
+        });
+        server.setStatus({ processed: status.processed });
+      },
+      onSessionSkipped() {
+        status.skipped++;
+        server.setStatus({ skipped: status.skipped });
+      },
+      onError(msg) {
+        status.errors++;
+        server.setStatus({ errors: status.errors });
+        console.error(`  ! ${msg}`);
+      },
+      onComplete() {
+        server.setStatus({ scanning: false });
+        console.log(`  Scan complete: ${status.processed} imported, ${status.skipped} skipped, ${status.errors} errors`);
+      },
+    }).catch(err => {
+      console.error('Discovery failed:', err);
+      server.setStatus({ scanning: false });
+    });
+  } else {
+    server.setStatus({ scanning: false });
+  }
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    console.log('\nShutting down...');
+    await server.close();
+    storage.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
 const program = new Command();
 
 program
   .name('jinsong')
   .description('Agent experience quality metrics')
   .version('0.1.0');
+
+// Default action: `jinsong` with no subcommand → serve + auto-discover
+program
+  .option('--db <path>', 'SQLite database path')
+  .option('--port <n>', 'HTTP port', '4317')
+  .option('--no-open', 'Do not auto-open the browser')
+  .option('--no-scan', 'Start the server without auto-discovering sessions')
+  .action((opts: { db?: string; port?: string; open?: boolean; scan?: boolean }) => {
+    runServe({
+      db: opts.db,
+      port: opts.port,
+      noOpen: opts.open === false,
+      noScan: opts.scan === false,
+    });
+  });
 
 program
   .command('import')
