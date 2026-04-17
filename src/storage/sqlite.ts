@@ -273,6 +273,36 @@ export class SQLiteStorage implements StorageAdapter {
     }));
   }
 
+  /**
+   * Return (session_id, tool_name, tool_category) rows from every
+   * `tool_call_start` event. Used by the server to build per-session
+   * tool-category counts for the Distributions donut (DASH-6). We don't
+   * store a denormalized total on `sessions` because the set of categories
+   * may evolve — re-deriving from raw events keeps the source-of-truth in
+   * one place while staying cheap (one SQL query, JSON-parsed once per row).
+   */
+  queryToolCallStartRows(): Array<{ session_id: string; tool_name: string; tool_category: string | null }> {
+    const rows = this.db
+      .prepare("SELECT session_id, payload FROM events WHERE event_type = 'tool_call_start'")
+      .all() as Array<{ session_id: string; payload: string }>;
+    const out: Array<{ session_id: string; tool_name: string; tool_category: string | null }> = [];
+    for (const r of rows) {
+      try {
+        const p = JSON.parse(r.payload) as { tool_name?: string; tool_category?: string };
+        if (typeof p.tool_name === 'string') {
+          out.push({
+            session_id: r.session_id,
+            tool_name: p.tool_name,
+            tool_category: typeof p.tool_category === 'string' ? p.tool_category : null,
+          });
+        }
+      } catch {
+        // Skip malformed payloads; counts remain accurate for well-formed ones.
+      }
+    }
+    return out;
+  }
+
   getSessionCount(): number {
     const row = this.db.prepare('SELECT COUNT(*) as cnt FROM sessions').get() as { cnt: number };
     return row.cnt;

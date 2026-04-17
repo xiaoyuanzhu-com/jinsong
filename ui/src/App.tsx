@@ -5,6 +5,7 @@ import { DashboardShell } from '@/components/DashboardShell'
 import { HeroKpiRow } from '@/components/HeroKpiRow'
 import { PillarHealthRow } from '@/components/PillarHealthRow'
 import { TrendsRow } from '@/components/TrendsRow'
+import { DistributionsRow } from '@/components/DistributionsRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -27,6 +28,11 @@ function App() {
         {/* DASH-5: trends row — 4 timeline charts (sessions, tokens, TTFT, stall). */}
         <div className="mt-6">
           <TrendsRow />
+        </div>
+
+        {/* DASH-6: distributions row — 3 donut charts (content, end reason, tool). */}
+        <div className="mt-6">
+          <DistributionsRow />
         </div>
 
         {/* DemoChart stays below as a smoke test until it's retired. */}

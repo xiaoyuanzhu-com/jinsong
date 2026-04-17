@@ -56,6 +56,13 @@ export interface SessionMetrics {
 export interface SessionRow {
   session: Session
   metrics: SessionMetrics | null
+  /**
+   * Per-session count of tool invocations grouped by category
+   * (execution / file_system / browser / other). Added in DASH-6 for the
+   * Distributions row. Absent on very old server builds; treat `undefined`
+   * as "no data yet" and render the donut's empty state.
+   */
+  tool_category_counts?: Record<string, number>
 }
 
 interface SessionsResponse {

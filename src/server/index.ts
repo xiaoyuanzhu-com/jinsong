@@ -56,6 +56,28 @@ function mimeFor(filePath: string): string {
 }
 
 /**
+ * Fallback classifier when a stored `tool_call_start` payload lacks the
+ * `tool_category` field. Mirrors `inferToolCategory()` in
+ * `src/connectors/claude-code.ts` — kept deliberately tiny so /api/sessions
+ * stays free of connector imports.
+ */
+function inferToolCategoryFallback(name: string): string {
+  const n = name.toLowerCase();
+  if (n === 'bash' || n === 'execute') return 'execution';
+  if (
+    n === 'read' ||
+    n === 'glob' ||
+    n === 'grep' ||
+    n === 'edit' ||
+    n === 'write'
+  ) {
+    return 'file_system';
+  }
+  if (n === 'webfetch' || n === 'websearch') return 'browser';
+  return 'other';
+}
+
+/**
  * Locate the Vite-built UI assets folder (`ui/dist/`). The server runs in two
  * layouts:
  *   - Source (tsx/ts-node, tests): <repo>/src/server/index.ts → <repo>/ui/dist
@@ -191,9 +213,27 @@ export async function startLiveServer(
         const sessions = storage.querySessions();
         const metrics = storage.queryMetrics();
         const metricsBySession = new Map(metrics.map(m => [m.session_id, m]));
+
+        // DASH-6: per-session tool-category counts for the Distributions donut.
+        // Re-derive category from the stored tool_name if the payload didn't
+        // already carry one (older rows, alternate connectors). One query,
+        // one pass — O(events) total, bounded by the existing events table.
+        const toolRows = storage.queryToolCallStartRows();
+        const toolCategoryBySession = new Map<string, Record<string, number>>();
+        for (const r of toolRows) {
+          const cat = r.tool_category ?? inferToolCategoryFallback(r.tool_name);
+          let bucket = toolCategoryBySession.get(r.session_id);
+          if (!bucket) {
+            bucket = {};
+            toolCategoryBySession.set(r.session_id, bucket);
+          }
+          bucket[cat] = (bucket[cat] ?? 0) + 1;
+        }
+
         const rows = sessions.map(s => ({
           session: s,
           metrics: metricsBySession.get(s.session_id) ?? null,
+          tool_category_counts: toolCategoryBySession.get(s.session_id) ?? {},
         }));
         json(res, 200, { sessions: rows });
       } catch (err) {
