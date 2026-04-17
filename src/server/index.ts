@@ -279,6 +279,79 @@ export async function startLiveServer(
       return;
     }
 
+    // API: single session detail (DASH-10). Shape mirrors one entry from
+    // /api/sessions: { session, metrics, tool_category_counts, tool_stats }.
+    // We deliberately re-derive tool counts here rather than running the full
+    // O(events) scan from /api/sessions — querying events for a single
+    // session is already O(events in that session), which is much cheaper.
+    if (pathOnly.startsWith('/api/session/')) {
+      const sessionId = decodeURIComponent(pathOnly.slice('/api/session/'.length));
+      if (!sessionId) {
+        json(res, 404, { error: 'Session not found' });
+        return;
+      }
+      try {
+        const sessions = storage.querySessions();
+        const session = sessions.find(s => s.session_id === sessionId);
+        if (!session) {
+          json(res, 404, { error: 'Session not found' });
+          return;
+        }
+        const allMetrics = storage.queryMetrics();
+        const metrics = allMetrics.find(m => m.session_id === sessionId) ?? null;
+
+        // Tool-category counts + per-tool stats, scoped to this session only.
+        const toolCategoryCounts: Record<string, number> = {};
+        const toolStats: Record<
+          string,
+          { calls: number; successes: number; failures: number }
+        > = {};
+        function bucket(tool: string) {
+          let b = toolStats[tool];
+          if (!b) {
+            b = { calls: 0, successes: 0, failures: 0 };
+            toolStats[tool] = b;
+          }
+          return b;
+        }
+
+        const events = storage.queryEvents(sessionId);
+        for (const e of events) {
+          if (e.event_type === 'tool_call_start') {
+            const p = e.payload as {
+              tool_name?: unknown;
+              tool_category?: unknown;
+            };
+            const name = typeof p.tool_name === 'string' ? p.tool_name : '';
+            if (!name) continue;
+            const cat =
+              typeof p.tool_category === 'string'
+                ? p.tool_category
+                : inferToolCategoryFallback(name);
+            toolCategoryCounts[cat] = (toolCategoryCounts[cat] ?? 0) + 1;
+            bucket(name).calls += 1;
+          } else if (e.event_type === 'tool_call_end') {
+            const p = e.payload as { tool_name?: unknown; status?: unknown };
+            const name = typeof p.tool_name === 'string' ? p.tool_name : '';
+            if (!name) continue;
+            const b = bucket(name);
+            if (p.status === 'success') b.successes += 1;
+            else b.failures += 1;
+          }
+        }
+
+        json(res, 200, {
+          session,
+          metrics,
+          tool_category_counts: toolCategoryCounts,
+          tool_stats: toolStats,
+        });
+      } catch (err) {
+        json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      }
+      return;
+    }
+
     // API: status
     if (pathOnly === '/api/status') {
       json(res, 200, status);

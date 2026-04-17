@@ -1,80 +1,42 @@
 import { useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { DemoChart } from '@/components/DemoChart'
-import { DashboardShell } from '@/components/DashboardShell'
-import { HeroKpiRow } from '@/components/HeroKpiRow'
-import { PillarHealthRow } from '@/components/PillarHealthRow'
-import { TrendsRow } from '@/components/TrendsRow'
-import { DistributionsRow } from '@/components/DistributionsRow'
-import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
-import { ActivityRow } from '@/components/ActivityRow'
-import { AgentModelRow } from '@/components/AgentModelRow'
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+  Navigate,
+} from 'react-router-dom'
+
+import { DashboardPage } from '@/components/DashboardPage'
+import { SessionDetailPage } from '@/components/SessionDetailPage'
 import { RangeProvider } from '@/context/RangeContext'
 
+/**
+ * Top-level router (DASH-10). Two routes:
+ *   - `/`                → full dashboard (all DASH-3..9 rows + session list)
+ *   - `/session/:id`     → per-session detail with all 35 metrics
+ *
+ * `RangeProvider` sits above the routes so both pages read the same
+ * `?range=` URL param. Dark mode is applied once on mount to mirror the
+ * pre-router behaviour.
+ */
 function App() {
-  // Dark mode default — mirror the existing Jinsong UI.
   useEffect(() => {
     document.documentElement.classList.add('dark')
   }, [])
 
   return (
-    <RangeProvider>
-      <DashboardShell>
-        {/* DASH-3: hero KPI row — six summary cards with sparklines. */}
-        <HeroKpiRow />
-
-        {/* DASH-4: pillar health row — five cards, one per AX pillar. */}
-        <div className="mt-6">
-          <PillarHealthRow />
-        </div>
-
-        {/* DASH-5: trends row — 4 timeline charts (sessions, tokens, TTFT, stall). */}
-        <div className="mt-6">
-          <TrendsRow />
-        </div>
-
-        {/* DASH-6: distributions row — 3 donut charts (content, end reason, tool). */}
-        <div className="mt-6">
-          <DistributionsRow />
-        </div>
-
-        {/* DASH-7: tool performance row — 2 horizontal bar charts. */}
-        <div className="mt-6">
-          <ToolPerformanceRow />
-        </div>
-
-        {/* DASH-8: activity heatmap — 7 × 24 session count grid. */}
-        <div className="mt-6">
-          <ActivityRow />
-        </div>
-
-        {/* DASH-9: agent/model breakdown — 2 horizontal bar charts. */}
-        <div className="mt-6">
-          <AgentModelRow />
-        </div>
-
-        {/* DemoChart stays below as a smoke test until it's retired. */}
-        <div className="mt-6 max-w-3xl">
-          <DemoChart />
-        </div>
-
-        <div className="mt-8 max-w-3xl rounded-lg border border-border bg-card p-8 shadow-sm">
-          <h2 className="mb-2 text-xl font-semibold">
-            shadcn primitive smoke test
-          </h2>
-          <p className="mb-6 text-muted-foreground">
-            Buttons from DASH-0 kept as a secondary smoke test alongside the
-            Recharts + Card demo above.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button>Primary</Button>
-            <Button variant="secondary">Secondary</Button>
-            <Button variant="outline">Outline</Button>
-            <Button variant="ghost">Ghost</Button>
-          </div>
-        </div>
-      </DashboardShell>
-    </RangeProvider>
+    <BrowserRouter>
+      <RangeProvider>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/session/:id" element={<SessionDetailPage />} />
+          {/* Unknown paths fall back to the dashboard rather than showing a
+              404 page — there's only one other route and the server SPA
+              fallback may have routed e.g. a stale bookmark here. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </RangeProvider>
+    </BrowserRouter>
   )
 }
 

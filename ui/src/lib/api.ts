@@ -24,17 +24,36 @@ export interface Session {
   model_id: string
 }
 
-/** Mirrors the computed-metrics shape from `src/types.ts`. */
+/**
+ * Mirrors the computed-metrics shape from `src/types.ts`.
+ *
+ * Most fields are optional here because older server builds / mock rows
+ * may only populate a subset. The detail page (DASH-10) reaches for the
+ * full set; existing dashboard widgets only touch the fields they know
+ * about. Unknown fields always render as `—` in the UI.
+ */
 export interface SessionMetrics {
   session_id: string
 
-  // Operational — session level
+  // Operational — session level (metrics.md §1.1)
   tokens_per_session: number
   turns_per_session: number
   tool_calls_per_session: number
   duration_seconds: number
   errors_per_session: number
   time_per_turn_avg: number
+
+  // Operational — per-event aggregates (metrics.md §1.2). Optional because
+  // pre-DASH-10 builds only set the r_* mirror, not these aggregates.
+  time_to_first_token?: number | null
+  tokens_per_turn_avg?: number
+  tool_call_duration_ms_avg?: number | null
+  tool_call_duration_ms_p50?: number | null
+  tool_call_duration_ms_p95?: number | null
+  tool_success_rate?: number | null
+  retry_count_total?: number
+  stall_duration_ms_avg?: number | null
+  stall_duration_ms_total?: number
 
   // Responsiveness (r_* families we currently surface)
   r_time_to_first_token: number | null
@@ -48,9 +67,28 @@ export interface SessionMetrics {
   rel_stall_count: number
   rel_avg_stall_duration: number | null
   rel_error_rate: number
+  rel_hidden_retries?: number
+
+  // Autonomy — some fields (a_user_active_time_pct) not emitted yet.
+  a_questions_asked?: number
+  a_user_corrections?: number
+  a_first_try_success_rate?: number
+  a_user_active_time_pct?: number
+  a_work_multiplier?: number | null
+
+  // Correctness — mostly L4 (judge) or not yet emitted.
+  c_output_quality_score?: number | null
+  c_clean_output_rate?: number | null
+  c_quality_decay?: number | null
+  c_useful_token_pct?: number
 
   // Completion
   comp_task_completion_rate: number
+  comp_redo_rate?: number | null
+  comp_gave_up_rate?: number
+  comp_where_they_gave_up?: string | null
+  comp_time_to_done?: number | null
+  comp_came_back_rate?: number | null
 }
 
 /**
@@ -103,4 +141,34 @@ export async function fetchSessions(): Promise<SessionRow[]> {
   }
   const body = (await res.json()) as SessionsResponse
   return Array.isArray(body?.sessions) ? body.sessions : []
+}
+
+/**
+ * Sentinel thrown by `fetchSessionById` when the server responds 404.
+ * The detail page checks for this so it can render a dedicated
+ * "Session not found" state instead of a generic error banner.
+ */
+export class SessionNotFoundError extends Error {
+  constructor(sessionId: string) {
+    super(`Session not found: ${sessionId}`)
+    this.name = 'SessionNotFoundError'
+  }
+}
+
+/**
+ * Fetch a single session's detail payload. Throws `SessionNotFoundError`
+ * on 404 and a generic `Error` for any other failure (network, 5xx, malformed
+ * JSON). The returned shape matches one entry from `/api/sessions`.
+ */
+export async function fetchSessionById(id: string): Promise<SessionRow> {
+  const res = await fetch(`/api/session/${encodeURIComponent(id)}`, {
+    headers: { accept: 'application/json' },
+  })
+  if (res.status === 404) {
+    throw new SessionNotFoundError(id)
+  }
+  if (!res.ok) {
+    throw new Error(`fetchSessionById: HTTP ${res.status}`)
+  }
+  return (await res.json()) as SessionRow
 }

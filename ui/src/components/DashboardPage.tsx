@@ -1,0 +1,81 @@
+import { Button } from '@/components/ui/button'
+import { DemoChart } from '@/components/DemoChart'
+import { DashboardShell } from '@/components/DashboardShell'
+import { HeroKpiRow } from '@/components/HeroKpiRow'
+import { PillarHealthRow } from '@/components/PillarHealthRow'
+import { TrendsRow } from '@/components/TrendsRow'
+import { DistributionsRow } from '@/components/DistributionsRow'
+import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
+import { ActivityRow } from '@/components/ActivityRow'
+import { AgentModelRow } from '@/components/AgentModelRow'
+import { SessionTableRow } from '@/components/SessionTableRow'
+
+/**
+ * Main dashboard page (route `/`). Extracted from `App.tsx` in DASH-10 so
+ * the router can mount a sibling `/session/:id` detail page without this
+ * tree re-rendering on navigation.
+ */
+export function DashboardPage() {
+  return (
+    <DashboardShell>
+      {/* DASH-3: hero KPI row — six summary cards with sparklines. */}
+      <HeroKpiRow />
+
+      {/* DASH-4: pillar health row — five cards, one per AX pillar. */}
+      <div className="mt-6">
+        <PillarHealthRow />
+      </div>
+
+      {/* DASH-5: trends row — 4 timeline charts (sessions, tokens, TTFT, stall). */}
+      <div className="mt-6">
+        <TrendsRow />
+      </div>
+
+      {/* DASH-6: distributions row — 3 donut charts (content, end reason, tool). */}
+      <div className="mt-6">
+        <DistributionsRow />
+      </div>
+
+      {/* DASH-7: tool performance row — 2 horizontal bar charts. */}
+      <div className="mt-6">
+        <ToolPerformanceRow />
+      </div>
+
+      {/* DASH-8: activity heatmap — 7 × 24 session count grid. */}
+      <div className="mt-6">
+        <ActivityRow />
+      </div>
+
+      {/* DASH-9: agent/model breakdown — 2 horizontal bar charts. */}
+      <div className="mt-6">
+        <AgentModelRow />
+      </div>
+
+      {/* DASH-10: session list — most recent first, links to /session/:id. */}
+      <div className="mt-6">
+        <SessionTableRow />
+      </div>
+
+      {/* DemoChart stays below as a smoke test until it's retired. */}
+      <div className="mt-6 max-w-3xl">
+        <DemoChart />
+      </div>
+
+      <div className="mt-8 max-w-3xl rounded-lg border border-border bg-card p-8 shadow-sm">
+        <h2 className="mb-2 text-xl font-semibold">
+          shadcn primitive smoke test
+        </h2>
+        <p className="mb-6 text-muted-foreground">
+          Buttons from DASH-0 kept as a secondary smoke test alongside the
+          Recharts + Card demo above.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button>Primary</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="ghost">Ghost</Button>
+        </div>
+      </div>
+    </DashboardShell>
+  )
+}
