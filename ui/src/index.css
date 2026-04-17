@@ -28,6 +28,22 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* Chart palette (light) — shadcn chart primitives expect --chart-1..5.
+       Semantics: --chart-1 = primary data series (sessions, the hero metric);
+       --chart-2..5 = additional series, rotate in order when stacking.
+       Tuned a touch darker than dark-mode siblings so they read on white. */
+    --chart-1: 199 90% 48%;   /* sky */
+    --chart-2: 160 65% 40%;   /* emerald/teal */
+    --chart-3: 263 65% 55%;   /* violet */
+    --chart-4: 38 92% 50%;    /* amber */
+    --chart-5: 350 80% 55%;   /* rose */
+
+    /* Semantic threshold pills (match src/server/ui.ts):
+       --good = success/green, --fair = warning/amber, --poor = failure/red. */
+    --good: 142 71% 45%;      /* #22c55e */
+    --fair: 48 96% 53%;       /* #eab308 */
+    --poor: 0 84% 60%;        /* #ef4444 */
   }
 
   .dark {
@@ -52,6 +68,20 @@
     --input: 218 15% 18%;
     --ring: 199 95% 74%;               /* sky-300 focus ring */
     --radius: 0.5rem;
+
+    /* Chart palette (dark) — the primary theme for Jinsong.
+       --chart-1 matches --primary (sky-300) so the hero series visually
+       agrees with buttons/rings. */
+    --chart-1: 199 95% 74%;   /* sky-300 — primary data series */
+    --chart-2: 160 70% 55%;   /* emerald/teal */
+    --chart-3: 263 75% 72%;   /* violet */
+    --chart-4: 38 92% 65%;    /* amber */
+    --chart-5: 350 85% 70%;   /* rose */
+
+    /* Semantic threshold pills — re-declared for dark so they stay bright. */
+    --good: 142 71% 45%;      /* #22c55e */
+    --fair: 48 96% 53%;       /* #eab308 */
+    --poor: 0 84% 60%;        /* #ef4444 — error/failure states */
   }
 }
 

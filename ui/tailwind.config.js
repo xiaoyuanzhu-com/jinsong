@@ -50,6 +50,10 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Semantic threshold colors — match src/server/ui.ts pills.
+        good: 'hsl(var(--good))',
+        fair: 'hsl(var(--fair))',
+        poor: 'hsl(var(--poor))',
       },
       borderRadius: {
         lg: 'var(--radius)',

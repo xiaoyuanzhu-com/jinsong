@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { DemoChart } from '@/components/DemoChart'
 
 function App() {
   // Dark mode default — mirror the existing Jinsong UI.
@@ -12,16 +13,20 @@ function App() {
       <div className="container mx-auto max-w-5xl px-6 py-12">
         <header className="flex items-baseline justify-between gap-4 mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">Jinsong</h1>
-          <span className="text-sm text-muted-foreground">DASH-0 scaffold</span>
+          <span className="text-sm text-muted-foreground">DASH-1 scaffold</span>
         </header>
+
+        <div className="mb-8">
+          <DemoChart />
+        </div>
 
         <div className="rounded-lg border border-border bg-card p-8 shadow-sm">
           <h2 className="text-xl font-semibold mb-2">
-            Jinsong Dashboard — DASH-0 scaffold OK
+            shadcn primitive smoke test
           </h2>
           <p className="text-muted-foreground mb-6">
-            Vite + React + TypeScript + Tailwind + shadcn/ui are wired up. Real
-            data and charts will arrive in later DASH tasks.
+            Buttons from DASH-0 kept as a secondary smoke test alongside the
+            Recharts + Card demo above.
           </p>
           <div className="flex gap-3 flex-wrap">
             <Button>Primary</Button>
