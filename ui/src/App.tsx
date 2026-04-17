@@ -8,6 +8,7 @@ import { TrendsRow } from '@/components/TrendsRow'
 import { DistributionsRow } from '@/components/DistributionsRow'
 import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
 import { ActivityRow } from '@/components/ActivityRow'
+import { AgentModelRow } from '@/components/AgentModelRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -45,6 +46,11 @@ function App() {
         {/* DASH-8: activity heatmap — 7 × 24 session count grid. */}
         <div className="mt-6">
           <ActivityRow />
+        </div>
+
+        {/* DASH-9: agent/model breakdown — 2 horizontal bar charts. */}
+        <div className="mt-6">
+          <AgentModelRow />
         </div>
 
         {/* DemoChart stays below as a smoke test until it's retired. */}
