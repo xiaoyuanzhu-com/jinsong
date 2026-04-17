@@ -7,6 +7,7 @@ import { PillarHealthRow } from '@/components/PillarHealthRow'
 import { TrendsRow } from '@/components/TrendsRow'
 import { DistributionsRow } from '@/components/DistributionsRow'
 import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
+import { ActivityRow } from '@/components/ActivityRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -39,6 +40,11 @@ function App() {
         {/* DASH-7: tool performance row — 2 horizontal bar charts. */}
         <div className="mt-6">
           <ToolPerformanceRow />
+        </div>
+
+        {/* DASH-8: activity heatmap — 7 × 24 session count grid. */}
+        <div className="mt-6">
+          <ActivityRow />
         </div>
 
         {/* DemoChart stays below as a smoke test until it's retired. */}
