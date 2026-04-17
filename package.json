@@ -6,8 +6,14 @@
   "bin": {
     "jinsong": "./dist/cli.cjs"
   },
+  "files": [
+    "dist",
+    "ui/dist"
+  ],
   "scripts": {
-    "build": "tsup",
+    "build": "npm run build:server && npm run build:ui",
+    "build:server": "tsup",
+    "build:ui": "cd ui && npm run build",
     "dev": "tsup --watch"
   },
   "dependencies": {
