@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { DemoChart } from '@/components/DemoChart'
 import { DashboardShell } from '@/components/DashboardShell'
+import { HeroKpiRow } from '@/components/HeroKpiRow'
 import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
@@ -13,8 +14,10 @@ function App() {
   return (
     <RangeProvider>
       <DashboardShell>
-        {/* DASH-1 demo chart stays as a placeholder until DASH-3 replaces
-            the hero row with real metrics. */}
+        {/* DASH-3: hero KPI row — six summary cards with sparklines. */}
+        <HeroKpiRow />
+
+        {/* DemoChart stays below as a smoke test until DASH-5+ replaces it. */}
         <div className="mt-6 max-w-3xl">
           <DemoChart />
         </div>
