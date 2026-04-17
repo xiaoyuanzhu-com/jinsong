@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Area,
   AreaChart,
@@ -21,16 +21,8 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { TimelineChart } from '@/components/TimelineChart'
-import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { filterByRange, median, rangeToDays } from '@/lib/aggregate'
-import {
-  abbreviateNumber,
-  bucketByDayMulti,
-  defaultTimelineDays,
-  formatAxisDate,
-  percentile,
-} from '@/lib/timeline'
+import { useDashboardData } from '@/context/DashboardDataContext'
+import { abbreviateNumber, formatAxisDate } from '@/lib/timeline'
 
 // ─── Chart configs (color-key → CSS var) ──────────────────────────────────
 
@@ -321,88 +313,29 @@ function TrendsSkeletonCard() {
 
 /**
  * Trends row — four daily timeline charts arranged 2×2 on wide screens.
- *
- * Fetches /api/sessions independently for now (DASH-11 collapses all row
- * fetches into a single /api/aggregate call). Buckets respect the active
- * range: 7d → 7 buckets, 30d → 30, 90d → 90, 'all' → a stable 90-day window.
+ * Reads precomputed daily buckets from `/api/aggregate` (DASH-11).
  */
 export function TrendsRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const datasets = useMemo(() => {
-    if (rows == null) return null
-    const now = Date.now()
-    const current = filterByRange(rows, range, now)
-    const days = defaultTimelineDays(rangeToDays(range))
-
-    const sessionsDaily = bucketByDayMulti<{ sessions: number }>(
-      current,
-      days,
-      now,
-      (bucket) => ({ sessions: bucket.length }),
+    if (!data) return null
+    const sessionsDaily: SessionsDaily[] = data.timelines.sessions_per_day.map(
+      (r) => ({ day: r.date, sessions: r.count }),
     )
-
-    const tokensDaily = bucketByDayMulti<{ in: number; out: number }>(
-      current,
-      days,
-      now,
-      (bucket) => {
-        let tokIn = 0
-        let tokOut = 0
-        for (const r of bucket) {
-          const i = r.session.total_tokens_in
-          const o = r.session.total_tokens_out
-          if (typeof i === 'number' && Number.isFinite(i)) tokIn += i
-          if (typeof o === 'number' && Number.isFinite(o)) tokOut += o
-        }
-        return { in: tokIn, out: tokOut }
-      },
+    const tokensDaily: TokensDaily[] = data.timelines.tokens_per_day.map(
+      (r) => ({ day: r.date, in: r.in, out: r.out }),
     )
-
-    const ttftDaily = bucketByDayMulti<{ p50: number | null; p95: number | null }>(
-      current,
-      days,
-      now,
-      (bucket) => {
-        const xs = bucket.map((r) => r.metrics?.r_time_to_first_token ?? null)
-        return {
-          p50: percentile(xs, 0.5),
-          p95: percentile(xs, 0.95),
-        }
-      },
+    const ttftDaily: TtftDaily[] = data.timelines.ttft_p50_p95.map((r) => ({
+      day: r.date,
+      p50: r.p50,
+      p95: r.p95,
+    }))
+    const stallDaily: StallDaily[] = data.timelines.stall_ratio_median.map(
+      (r) => ({ day: r.date, stall: r.value }),
     )
-
-    const stallDaily = bucketByDayMulti<{ stall: number | null }>(
-      current,
-      days,
-      now,
-      (bucket) => {
-        const m = median(bucket.map((r) => r.metrics?.rel_stall_ratio ?? null))
-        return { stall: m }
-      },
-    )
-
     return { sessionsDaily, tokensDaily, ttftDaily, stallDaily }
-  }, [rows, range])
+  }, [data])
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
@@ -412,7 +345,7 @@ export function TrendsRow() {
         Trends
       </h2>
 
-      {datasets == null ? (
+      {isLoading || !datasets ? (
         <div className={gridClass}>
           {Array.from({ length: 4 }).map((_, i) => (
             <TrendsSkeletonCard key={i} />
@@ -429,7 +362,7 @@ export function TrendsRow() {
 
       {error && (
         <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load sessions: {error}
+          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

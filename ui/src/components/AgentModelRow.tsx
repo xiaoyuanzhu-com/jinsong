@@ -1,14 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarListChart, type BarListDatum } from '@/components/BarListChart'
-import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { filterByRange } from '@/lib/aggregate'
-import { aggregateByAgent, aggregateByModel } from '@/lib/breakdowns'
-
-const TOP_N = 10
+import { useDashboardData } from '@/context/DashboardDataContext'
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────
 
@@ -35,50 +30,26 @@ function BarListSkeletonCard() {
 // ─── Component ────────────────────────────────────────────────────────────
 
 /**
- * Agent / Model breakdown row — two side-by-side horizontal bar charts.
- *
- *   Left:  Top 10 agent frameworks by session count.
- *   Right: Top 10 model IDs by session count.
- *
- * `null` / `undefined` / empty values bucket to `"unknown"` so the user
- * can still spot sessions that arrived without a reported agent/model.
- * Uses `var(--chart-1)` and `var(--chart-2)` for visual distinction.
+ * Agent / Model breakdown row — two side-by-side horizontal bar charts
+ * fed by precomputed `breakdowns` from `/api/aggregate` (DASH-11). Server
+ * already normalizes blank/unknown values to "unknown" and returns the
+ * top-10 per dimension by session count.
  */
 export function AgentModelRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const datasets = useMemo(() => {
-    if (rows == null) return null
-    const current = filterByRange(rows, range)
-
-    const agentData: BarListDatum[] = aggregateByAgent(current, TOP_N).map(
-      (d) => ({ label: d.label, value: d.value }),
-    )
-    const modelData: BarListDatum[] = aggregateByModel(current, TOP_N).map(
-      (d) => ({ label: d.label, value: d.value }),
-    )
-
+    if (!data) return null
+    const agentData: BarListDatum[] = data.breakdowns.agents.map((d) => ({
+      label: d.label,
+      value: d.count,
+    }))
+    const modelData: BarListDatum[] = data.breakdowns.models.map((d) => ({
+      label: d.label,
+      value: d.count,
+    }))
     return { agentData, modelData }
-  }, [rows, range])
+  }, [data])
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
@@ -88,7 +59,7 @@ export function AgentModelRow() {
         By Agent & Model
       </h2>
 
-      {datasets == null ? (
+      {isLoading || !datasets ? (
         <div className={gridClass}>
           <BarListSkeletonCard />
           <BarListSkeletonCard />
@@ -116,7 +87,7 @@ export function AgentModelRow() {
 
       {error && (
         <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load sessions: {error}
+          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

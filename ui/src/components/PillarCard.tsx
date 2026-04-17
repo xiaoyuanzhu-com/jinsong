@@ -7,18 +7,13 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { cn } from '@/lib/utils'
-import type { SessionRow } from '@/lib/api'
-import {
-  classifyDistribution,
-  headlineDelta,
-  headlineValue,
-  type PillarDef,
-} from '@/lib/pillars'
+import type { PillarDef } from '@/lib/pillars'
+import type { AggregatePillar } from '@/lib/aggregate-types'
 
 export interface PillarCardProps {
   pillar: PillarDef
-  rows: SessionRow[]
-  priorRows: SessionRow[] | null
+  /** Precomputed pillar payload from `/api/aggregate` (DASH-11). */
+  data: AggregatePillar
 }
 
 const chartConfig = {
@@ -53,33 +48,30 @@ function pct(n: number, total: number): number {
   return Math.round((n / total) * 100)
 }
 
-export function PillarCard({ pillar, rows, priorRows }: PillarCardProps) {
-  const distribution = useMemo(
-    () => classifyDistribution(rows, pillar),
-    [rows, pillar],
-  )
-
-  const headline = useMemo(() => headlineValue(rows, pillar), [rows, pillar])
-  const priorHeadline = useMemo(
-    () => (priorRows == null ? null : headlineValue(priorRows, pillar)),
-    [priorRows, pillar],
-  )
-  const delta = headlineDelta(headline, priorHeadline)
+/**
+ * Pillar card — reads precomputed `good / fair / poor / headline` from
+ * the aggregate and relies on the pillar's static metadata (name,
+ * direction, formatters) for presentation.
+ */
+export function PillarCard({ pillar, data }: PillarCardProps) {
+  const total = data.good + data.fair + data.poor
+  const distribution = { good: data.good, fair: data.fair, poor: data.poor }
 
   const donutData = useMemo(() => {
-    if (distribution.total === 0) {
+    if (total === 0) {
       // Synthetic full ring so the geometry stays stable when there's
       // nothing to classify. Rendered as muted grey via the Cell override.
       return [{ key: 'empty', value: 1 }]
     }
     return SLICE_ORDER.map((k) => ({ key: k, value: distribution[k] }))
-  }, [distribution])
+  }, [total, distribution])
 
-  const goodPct = pct(distribution.good, distribution.total)
-  const fairPct = pct(distribution.fair, distribution.total)
-  const poorPct = pct(distribution.poor, distribution.total)
+  const goodPct = pct(distribution.good, total)
+  const fairPct = pct(distribution.fair, total)
+  const poorPct = pct(distribution.poor, total)
 
-  const headlineStr = pillar.formatHeadline(headline)
+  const headlineStr = pillar.formatHeadline(data.headline.value)
+  const delta = data.headline.delta
 
   const deltaNode = (() => {
     if (delta == null) {
@@ -100,7 +92,7 @@ export function PillarCard({ pillar, rows, priorRows }: PillarCardProps) {
     )
   })()
 
-  const isEmptyRing = distribution.total === 0
+  const isEmptyRing = total === 0
 
   return (
     <Card className="p-4">
@@ -163,7 +155,7 @@ export function PillarCard({ pillar, rows, priorRows }: PillarCardProps) {
       </div>
 
       <div className="mt-3 text-[11px] text-muted-foreground tabular-nums">
-        {distribution.total === 0
+        {total === 0
           ? 'No classifiable sessions'
           : `${goodPct}% good · ${fairPct}% fair · ${poorPct}% poor`}
       </div>

@@ -1,74 +1,40 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { filterByRange } from '@/lib/aggregate'
+import { useDashboardData } from '@/context/DashboardDataContext'
+import type { AggregateSessionTableRow } from '@/lib/aggregate-types'
 
 /**
- * Session list row (DASH-10).
+ * Session list row.
  *
- * Dense table of sessions in the active time range, most recent first. Each
- * row is a react-router `<Link>` to the corresponding `/session/:id` detail
- * page. Respects the global range filter (same hook as the rest of the
- * dashboard rows) so switching to "7d" immediately narrows the list.
- *
- * Intentionally minimal columns — we want a quick drill-down affordance,
- * not a replacement for a full sessions explorer.
+ * Dense table of sessions in the active time range, most recent first,
+ * fed by precomputed `sessions_table` from `/api/aggregate` (DASH-11).
+ * Server limits to the top-N most recent inside the selected range.
  */
 export function SessionTableRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useDashboardData()
 
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const filtered = useMemo(() => {
-    if (rows == null) return null
-    return filterByRange(rows, range).sort((a, b) => {
-      // Most recent first. Sort is stable so equal timestamps keep their
-      // original order from the API.
-      const ta = Date.parse(a.session.started_at)
-      const tb = Date.parse(b.session.started_at)
-      return tb - ta
-    })
-  }, [rows, range])
+  const rows = data?.sessions_table ?? null
 
   return (
     <Card className="p-0">
       <div className="flex items-baseline justify-between px-4 pb-2 pt-4">
         <div className="text-sm font-semibold">Sessions</div>
         <div className="text-[11px] text-muted-foreground">
-          {filtered == null
+          {rows == null
             ? ''
-            : filtered.length === 0
+            : rows.length === 0
               ? 'none in range'
-              : `${filtered.length} in range`}
+              : `${rows.length} shown`}
         </div>
       </div>
 
-      {filtered == null ? (
+      {isLoading || rows == null ? (
         <LoadingRows />
-      ) : filtered.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyRow error={error} />
       ) : (
-        <Table rows={filtered} />
+        <Table rows={rows} />
       )}
     </Card>
   )
@@ -87,12 +53,14 @@ function LoadingRows() {
 function EmptyRow({ error }: { error: string | null }) {
   return (
     <div className="px-4 pb-4 text-xs text-muted-foreground">
-      {error ? `Failed to load sessions: ${error}` : 'No sessions in range.'}
+      {error
+        ? `Failed to load dashboard data: ${error}`
+        : 'No sessions in range.'}
     </div>
   )
 }
 
-function Table({ rows }: { rows: SessionRow[] }) {
+function Table({ rows }: { rows: AggregateSessionTableRow[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-xs">
@@ -118,7 +86,7 @@ function Table({ rows }: { rows: SessionRow[] }) {
   )
 }
 
-function SessionListRow({ row }: { row: SessionRow }) {
+function SessionListRow({ row }: { row: AggregateSessionTableRow }) {
   const s = row.session
   const m = row.metrics
   const started = new Date(s.started_at)

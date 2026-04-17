@@ -5,6 +5,12 @@ import { existsSync } from 'node:fs';
 import { resolve as resolvePath, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SQLiteStorage } from '../storage/sqlite.js';
+import {
+  computeAggregate,
+  isRange,
+  type AggregateResponse,
+  type Range,
+} from '../aggregate/dashboard.js';
 import { renderLiveUI } from './ui.js';
 
 export interface ServerStatus {
@@ -180,7 +186,35 @@ export async function startLiveServer(
 
   const clients: Client[] = [];
 
+  // DASH-11: /api/aggregate cache. We memoize the computed payload per
+  // range for 15 s so back-to-back row renders (8 rows × N navigations)
+  // don't re-scan events.db each time. `invalidateAggregateCache()` is
+  // called when a new session is ingested so the dashboard freshens at
+  // the next request.
+  const AGGREGATE_TTL_MS = 15_000;
+  const aggregateCache = new Map<
+    Range,
+    { payload: AggregateResponse; expiresAt: number }
+  >();
+
+  function getAggregate(range: Range): AggregateResponse {
+    const now = Date.now();
+    const cached = aggregateCache.get(range);
+    if (cached && cached.expiresAt > now) return cached.payload;
+    const payload = computeAggregate(storage, range, { now });
+    aggregateCache.set(range, { payload, expiresAt: now + AGGREGATE_TTL_MS });
+    return payload;
+  }
+
+  function invalidateAggregateCache(): void {
+    aggregateCache.clear();
+  }
+
   function broadcast(event: string, data: unknown): void {
+    // New session ingest → stale /api/aggregate cache. Cheapest place to
+    // hook: the ingest pipeline already calls `broadcast('session', …)`
+    // when a fresh session lands (see src/cli.ts onSessionImported).
+    if (event === 'session') invalidateAggregateCache();
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     for (const c of clients) {
       try {
@@ -206,6 +240,25 @@ export async function startLiveServer(
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? '/';
     const pathOnly = url.split('?')[0];
+
+    // API: precomputed dashboard aggregate (DASH-11).
+    // Shape defined in src/aggregate/dashboard.ts; cache TTL 15 s per range.
+    if (pathOnly === '/api/aggregate') {
+      const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
+      const params = new URLSearchParams(query);
+      const rangeRaw = params.get('range');
+      if (!isRange(rangeRaw)) {
+        json(res, 400, { error: 'invalid range' });
+        return;
+      }
+      try {
+        const payload = getAggregate(rangeRaw);
+        json(res, 200, payload);
+      } catch (err) {
+        json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      }
+      return;
+    }
 
     // API: JSON sessions
     if (pathOnly === '/api/sessions') {

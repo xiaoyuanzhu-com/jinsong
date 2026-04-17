@@ -20,3 +20,15 @@ export function rangeLabel(r: Range): string {
   if (r === 'all') return 'All'
   return r
 }
+
+/**
+ * Map a time-range label to a day count. `'all'` returns `null`, which the
+ * downstream consumers interpret as "no lower bound". Small helper shared
+ * by the dashboard rows so they don't need to pull `@/lib/aggregate`.
+ */
+export function rangeToDays(r: Range): number | null {
+  if (r === '7d') return 7
+  if (r === '30d') return 30
+  if (r === '90d') return 90
+  return null
+}

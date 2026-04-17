@@ -1,18 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCard, type Direction } from '@/components/KpiCard'
 import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import {
-  bucketByDay,
-  filterByRange,
-  median,
-  pctDelta,
-  priorWindow,
-  rangeToDays,
-} from '@/lib/aggregate'
+import { useDashboardData } from '@/context/DashboardDataContext'
+import { rangeToDays } from '@/lib/range'
+import type { DailyBucket } from '@/lib/aggregate'
 
 // ─── Formatters ────────────────────────────────────────────────────────────
 
@@ -60,22 +54,13 @@ function formatSeconds(s: number): string {
   return `${s.toFixed(1)}s`
 }
 
-// ─── Aggregators ───────────────────────────────────────────────────────────
-
-function sumField(rows: SessionRow[], picker: (r: SessionRow) => number | null | undefined): number {
-  let total = 0
-  for (const r of rows) {
-    const v = picker(r)
-    if (typeof v === 'number' && Number.isFinite(v)) total += v
-  }
-  return total
-}
-
-function completionRate(rows: SessionRow[]): number | null {
-  if (rows.length === 0) return null
-  let done = 0
-  for (const r of rows) if (r.session.task_completed) done++
-  return done / rows.length
+/** Percent delta between current and prior scalars. Null when prior is
+ *  zero/null or either side is non-finite. */
+function pctDelta(current: number | null, prior: number | null): number | null {
+  if (current == null || prior == null) return null
+  if (!Number.isFinite(current) || !Number.isFinite(prior)) return null
+  if (prior === 0) return null
+  return ((current - prior) / Math.abs(prior)) * 100
 }
 
 // ─── Loading skeleton ──────────────────────────────────────────────────────
@@ -95,82 +80,61 @@ function SkeletonCard() {
 
 /**
  * Hero KPI row — 6 summary cards with 30-day sparklines at the top of the
- * dashboard. Fetches /api/sessions once on mount and computes all metrics
- * client-side; DASH-11 will move aggregation to /api/aggregate but the
- * cards' props shape stays the same.
+ * dashboard. Reads the precomputed payload from `DashboardDataContext`
+ * (DASH-11); each card's `{value, delta, sparkline}` is pulled directly
+ * from the aggregate — no client-side bucketing left here.
  */
 export function HeroKpiRow() {
   const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([]) // degrade to empty-state rather than permanent skeleton
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const kpis = useMemo(() => {
-    if (rows == null) return null
+    if (!data) return null
+    const t = data.totals
+    const p = data.prior
 
-    const now = Date.now()
-    const current = filterByRange(rows, range, now)
-    const prior = priorWindow(rows, range, now)
-    const days = rangeToDays(range) ?? 30 // sparkline always shows 30 buckets for "all"
+    // Sparklines arrive as `{bucket, <field>}`; KpiCard wants `{day, value}`.
+    function toBuckets<T>(
+      src: Array<{ bucket: string } & T>,
+      pick: (r: { bucket: string } & T) => number,
+    ): DailyBucket[] {
+      return src.map((r) => ({ day: r.bucket, value: pick(r) }))
+    }
 
-    // Current-window scalars
-    const curSessions = current.length
-    const curTokens = sumField(current, (r) => r.metrics?.tokens_per_session ?? null)
-    const curDuration = sumField(current, (r) => r.metrics?.duration_seconds ?? null)
-    const curCompletion = completionRate(current) // ratio 0..1 or null
-    const curTtft = median(current.map((r) => r.metrics?.r_time_to_first_token ?? null))
-    const curStall = median(current.map((r) => r.metrics?.rel_stall_ratio ?? null))
-
-    // Prior-window scalars (null when range === 'all')
-    const hasPrior = prior !== null && prior.length > 0
-    const prSessions = hasPrior ? prior!.length : null
-    const prTokens = hasPrior ? sumField(prior!, (r) => r.metrics?.tokens_per_session ?? null) : null
-    const prDuration = hasPrior ? sumField(prior!, (r) => r.metrics?.duration_seconds ?? null) : null
-    const prCompletion = hasPrior ? completionRate(prior!) : null
-    const prTtft = hasPrior ? median(prior!.map((r) => r.metrics?.r_time_to_first_token ?? null)) : null
-    const prStall = hasPrior ? median(prior!.map((r) => r.metrics?.rel_stall_ratio ?? null)) : null
-
-    // Sparklines — every series buckets the same current window.
-    const sparkSessions = bucketByDay(current, days, now, (b) => b.length)
-    const sparkTokens = bucketByDay(current, days, now, (b) =>
-      sumField(b, (r) => r.metrics?.tokens_per_session ?? null),
+    const sparkSessions = toBuckets(data.kpi_sparklines.sessions, (r) => r.count)
+    const sparkTokens = toBuckets(
+      data.kpi_sparklines.tokens,
+      (r) => r.in + r.out,
     )
-    const sparkDuration = bucketByDay(current, days, now, (b) =>
-      sumField(b, (r) => r.metrics?.duration_seconds ?? null),
+    const sparkDuration = toBuckets(
+      data.kpi_sparklines.duration,
+      (r) => r.seconds,
     )
-    const sparkCompletion = bucketByDay(current, days, now, (b) => {
-      const rate = completionRate(b)
-      return rate == null ? 0 : rate * 100
-    })
-    const sparkTtft = bucketByDay(current, days, now, (b) => {
-      const m = median(b.map((r) => r.metrics?.r_time_to_first_token ?? null))
-      return m ?? 0
-    })
-    const sparkStall = bucketByDay(current, days, now, (b) => {
-      const m = median(b.map((r) => r.metrics?.rel_stall_ratio ?? null))
-      return m ?? 0
-    })
+    const sparkCompletion = toBuckets(
+      data.kpi_sparklines.completion,
+      (r) => r.rate,
+    )
+    const sparkTtft = toBuckets(data.kpi_sparklines.ttft_median, (r) => r.value)
+    const sparkStall = toBuckets(
+      data.kpi_sparklines.stall_median,
+      (r) => r.value,
+    )
+
+    const curTokens = t.tokens_in + t.tokens_out
+    const prTokens = p ? p.totals.tokens_in + p.totals.tokens_out : null
+    const curCompletion =
+      t.sessions === 0 ? null : t.completions / t.sessions
+    const prCompletion =
+      p == null
+        ? null
+        : p.totals.sessions === 0
+          ? null
+          : p.totals.completions / p.totals.sessions
 
     return {
       sessions: {
-        value: formatInt(curSessions),
-        delta: pctDelta(curSessions, prSessions),
+        value: formatInt(t.sessions),
+        delta: pctDelta(t.sessions, p?.totals.sessions ?? null),
         spark: sparkSessions,
       },
       tokens: {
@@ -179,8 +143,8 @@ export function HeroKpiRow() {
         spark: sparkTokens,
       },
       duration: {
-        value: formatDurationSeconds(curDuration),
-        delta: pctDelta(curDuration, prDuration),
+        value: formatDurationSeconds(t.duration_seconds),
+        delta: pctDelta(t.duration_seconds, p?.totals.duration_seconds ?? null),
         spark: sparkDuration,
       },
       completion: {
@@ -189,17 +153,29 @@ export function HeroKpiRow() {
         spark: sparkCompletion,
       },
       ttft: {
-        value: curTtft == null ? '—' : formatSeconds(curTtft),
-        delta: pctDelta(curTtft, prTtft),
+        value:
+          data.medians.ttft_seconds == null
+            ? '—'
+            : formatSeconds(data.medians.ttft_seconds),
+        delta: pctDelta(
+          data.medians.ttft_seconds,
+          p?.medians.ttft_seconds ?? null,
+        ),
         spark: sparkTtft,
       },
       stall: {
-        value: curStall == null ? '—' : formatPct(curStall),
-        delta: pctDelta(curStall, prStall),
+        value:
+          data.medians.stall_ratio == null
+            ? '—'
+            : formatPct(data.medians.stall_ratio),
+        delta: pctDelta(
+          data.medians.stall_ratio,
+          p?.medians.stall_ratio ?? null,
+        ),
         spark: sparkStall,
       },
     }
-  }, [rows, range])
+  }, [data])
 
   const deltaSuffix = useMemo(() => {
     const days = rangeToDays(range)
@@ -209,7 +185,7 @@ export function HeroKpiRow() {
   const gridClass = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6'
 
   // Loading state — 6 skeleton cards that preserve the row's layout footprint.
-  if (rows == null) {
+  if (isLoading || !data) {
     return (
       <section aria-label="Key metrics" className={gridClass}>
         {Array.from({ length: 6 }).map((_, i) => (
@@ -232,7 +208,7 @@ export function HeroKpiRow() {
     { label: 'Median Stall Ratio', direction: 'down-is-good' },
   ]
 
-  if (rows.length === 0 || kpis == null) {
+  if (data.totals.sessions === 0 || kpis == null) {
     return (
       <section aria-label="Key metrics" className={gridClass}>
         {emptyCards.map((c) => (
@@ -248,7 +224,7 @@ export function HeroKpiRow() {
         ))}
         {error && (
           <div className="col-span-full text-xs text-muted-foreground">
-            Failed to load sessions: {error}
+            Failed to load dashboard data: {error}
           </div>
         )}
       </section>
@@ -307,62 +283,4 @@ export function HeroKpiRow() {
       />
     </section>
   )
-}
-
-/** Dev-only helper: build synthetic `SessionRow`s so designers can preview
- *  the row without running the ingest pipeline. Not exported into the app. */
-export function __buildMockSessionRowsForPreview(days = 30, perDayMax = 12): SessionRow[] {
-  const now = Date.now()
-  const DAY = 24 * 60 * 60 * 1000
-  const rows: SessionRow[] = []
-  let seed = 42
-  const rand = () => {
-    seed = (seed * 9301 + 49297) % 233280
-    return seed / 233280
-  }
-  for (let d = 0; d < days; d++) {
-    const count = Math.round(1 + rand() * perDayMax)
-    for (let i = 0; i < count; i++) {
-      const startedAt = new Date(now - d * DAY - Math.floor(rand() * DAY)).toISOString()
-      const durationMs = Math.round(20_000 + rand() * 600_000)
-      const tokensIn = Math.round(500 + rand() * 8000)
-      const tokensOut = Math.round(500 + rand() * 8000)
-      rows.push({
-        session: {
-          session_id: `mock-${d}-${i}`,
-          started_at: startedAt,
-          ended_at: new Date(Date.parse(startedAt) + durationMs).toISOString(),
-          duration_ms: durationMs,
-          total_turns: 1 + Math.floor(rand() * 8),
-          total_tool_calls: Math.floor(rand() * 12),
-          total_tokens_in: tokensIn,
-          total_tokens_out: tokensOut,
-          task_completed: rand() > 0.25,
-          end_reason: 'completed',
-          agent_name: 'mock',
-          model_id: 'mock-model',
-        },
-        metrics: {
-          session_id: `mock-${d}-${i}`,
-          tokens_per_session: tokensIn + tokensOut,
-          turns_per_session: 3,
-          tool_calls_per_session: 2,
-          duration_seconds: durationMs / 1000,
-          errors_per_session: 0,
-          time_per_turn_avg: 30,
-          r_time_to_first_token: 0.5 + rand() * 3,
-          r_output_speed: null,
-          r_resume_speed: null,
-          r_time_per_turn: 30,
-          rel_start_failure_rate: 0,
-          rel_stall_ratio: rand() * 0.3,
-          rel_stall_count: 0,
-          rel_avg_stall_duration: null,
-          rel_error_rate: 0,
-          comp_task_completion_rate: 1,
-        },
-      })
-    }
-  }
-  return rows
 }

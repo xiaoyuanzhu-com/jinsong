@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ActivityHeatmap } from '@/components/ActivityHeatmap'
-import { useRange } from '@/context/RangeContext'
-import { filterByRange } from '@/lib/aggregate'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { buildHeatmapCounts } from '@/lib/heatmap'
+import { useDashboardData } from '@/context/DashboardDataContext'
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────
 
@@ -25,36 +22,23 @@ function HeatmapSkeletonCard() {
 
 /**
  * Activity row — full-width heatmap of hour-of-day × day-of-week session
- * counts. Shares `/api/sessions` with the other rows (DASH-11 will
- * consolidate into a single aggregate endpoint).
+ * counts, fed by precomputed `heatmap.cells` from `/api/aggregate`
+ * (DASH-11). Reconstitutes the 7×24 grid (Mon-first) that
+ * `ActivityHeatmap` consumes.
  */
 export function ActivityRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const grid = useMemo(() => {
-    if (rows == null) return null
-    const current = filterByRange(rows, range)
-    return buildHeatmapCounts(current)
-  }, [rows, range])
+    if (!data) return null
+    const g: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
+    for (const c of data.heatmap.cells) {
+      if (c.dow < 0 || c.dow > 6) continue
+      if (c.hour < 0 || c.hour > 23) continue
+      g[c.dow][c.hour] = c.count
+    }
+    return g
+  }, [data])
 
   return (
     <section aria-label="Activity heatmap">
@@ -62,7 +46,7 @@ export function ActivityRow() {
         Activity
       </h2>
 
-      {grid == null ? (
+      {isLoading || !grid ? (
         <HeatmapSkeletonCard />
       ) : (
         <ActivityHeatmap grid={grid} />
@@ -70,7 +54,7 @@ export function ActivityRow() {
 
       {error && (
         <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load sessions: {error}
+          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

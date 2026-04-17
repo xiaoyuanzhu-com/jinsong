@@ -1,20 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarListChart, type BarListDatum } from '@/components/BarListChart'
-import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { filterByRange } from '@/lib/aggregate'
-import {
-  aggregateToolCounts,
-  aggregateToolSuccessRates,
-  colorForSuccessRate,
-  hasToolStats,
-} from '@/lib/tool-stats'
+import { useDashboardData } from '@/context/DashboardDataContext'
+import { colorForSuccessRate } from '@/lib/tool-stats'
 
 const TOP_N = 10
-const MIN_CALLS_FOR_RATE = 5
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────
 
@@ -41,62 +33,33 @@ function BarListSkeletonCard() {
 // ─── Component ────────────────────────────────────────────────────────────
 
 /**
- * Tool Performance row — two side-by-side horizontal bar charts.
+ * Tool Performance row — two side-by-side horizontal bar charts fed by
+ * precomputed `tool_performance` from `/api/aggregate` (DASH-11).
  *
- *   Left:  Top 10 tools by call count (descending).
- *   Right: Tools by success rate, worst first, filtered to tools with
+ *   Left:  Top 10 tools by call count (server sends them descending).
+ *   Right: Tools by success rate, worst first, filtered server-side to
  *          >= 5 completed-or-pending calls in the active range.
- *
- * Shares `/api/sessions` with the other rows (DASH-11 will consolidate);
- * renders empty/awaiting states when the server hasn't shipped the
- * `tool_stats` field yet or the window has too few data points.
  */
 export function ToolPerformanceRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const datasets = useMemo(() => {
-    if (rows == null) return null
-    const current = filterByRange(rows, range)
-    const statsAvailable = hasToolStats(current)
+    if (!data) return null
+    const countData: BarListDatum[] = data.tool_performance.top_tools
+      .slice(0, TOP_N)
+      .map((t) => ({ label: t.tool, value: t.count }))
 
-    const topByCount = aggregateToolCounts(current).slice(0, TOP_N)
-    const countData: BarListDatum[] = topByCount.map((t) => ({
-      label: t.tool,
-      value: t.count,
-    }))
+    const rateData: BarListDatum[] = data.tool_performance.success_rates
+      .slice(0, TOP_N)
+      .map((t) => ({
+        label: t.tool,
+        // Store as 0..100 so the X-axis / label math stay integer-friendly.
+        value: Math.round((t.rate ?? 0) * 1000) / 10,
+        secondary: t.n,
+      }))
 
-    const successRates = aggregateToolSuccessRates(
-      current,
-      MIN_CALLS_FOR_RATE,
-    ).slice(0, TOP_N)
-    const rateData: BarListDatum[] = successRates.map((t) => ({
-      label: t.tool,
-      // Store as 0..100 so the X-axis / label math stay integer-friendly.
-      value: Math.round((t.rate ?? 0) * 1000) / 10,
-      secondary: t.calls,
-    }))
-
-    return { countData, rateData, statsAvailable }
-  }, [rows, range])
+    return { countData, rateData }
+  }, [data])
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
@@ -106,7 +69,7 @@ export function ToolPerformanceRow() {
         Tool performance
       </h2>
 
-      {datasets == null ? (
+      {isLoading || !datasets ? (
         <div className={gridClass}>
           <BarListSkeletonCard />
           <BarListSkeletonCard />
@@ -118,11 +81,7 @@ export function ToolPerformanceRow() {
             description="By invocation count"
             data={datasets.countData}
             formatValue={(d) => d.value.toLocaleString()}
-            emptyLabel={
-              datasets.statsAvailable
-                ? 'No tool calls in this range'
-                : 'Awaiting server aggregation'
-            }
+            emptyLabel="No tool calls in this range"
           />
           <BarListChart
             title="Tools by success rate"
@@ -135,18 +94,14 @@ export function ToolPerformanceRow() {
               const n = d.secondary ?? 0
               return `${pct} (${n} call${n === 1 ? '' : 's'})`
             }}
-            emptyLabel={
-              datasets.statsAvailable
-                ? 'Not enough data'
-                : 'Awaiting server aggregation'
-            }
+            emptyLabel="Not enough data"
           />
         </div>
       )}
 
       {error && (
         <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load sessions: {error}
+          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

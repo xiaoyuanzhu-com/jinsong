@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DonutCard, type DonutDatum } from '@/components/DonutCard'
-import { useRange } from '@/context/RangeContext'
-import { fetchSessions, type SessionRow } from '@/lib/api'
-import { filterByRange } from '@/lib/aggregate'
+import { useDashboardData } from '@/context/DashboardDataContext'
 import {
-  bucketByContentType,
-  bucketByEndReason,
-  bucketByToolCategory,
   CONTENT_TYPE_COLORS,
   CONTENT_TYPE_LABELS,
   CONTENT_TYPE_ORDER,
@@ -19,6 +14,9 @@ import {
   TOOL_CATEGORY_COLORS,
   TOOL_CATEGORY_LABELS,
   TOOL_CATEGORY_ORDER,
+  type ContentType,
+  type EndReasonBucket,
+  type ToolCategoryBucket,
 } from '@/lib/distributions'
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────
@@ -41,72 +39,59 @@ function DonutSkeletonCard() {
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+function zipDonut<K extends string>(
+  order: readonly K[],
+  labels: Record<K, string>,
+  colors: Record<K, string>,
+  rows: Array<{ label: string; count: number }>,
+): DonutDatum[] {
+  const byKey = new Map<string, number>()
+  for (const r of rows) byKey.set(r.label, r.count)
+  return order.map((k) => ({
+    key: k,
+    label: labels[k],
+    value: byKey.get(k) ?? 0,
+    color: colors[k],
+  }))
+}
+
 // ─── Component ────────────────────────────────────────────────────────────
 
 /**
- * Distributions row — 3 donut cards showing how sessions break down by
- * content type (metrics.md §3 thresholds), end reason, and tool category.
- *
- * Fetches /api/sessions independently for now (DASH-11 will consolidate
- * row-level fetches into a single /api/aggregate). Content-type inference
- * runs client-side; end-reason normalization handles the `failed`→`error`
- * legacy mapping; tool-category counts come from the server-side extension
- * added in this ticket (falls back to an empty-state donut when the field
- * is missing, e.g. an older server build).
+ * Distributions row — 3 donut cards fed by precomputed `distributions`
+ * from `/api/aggregate` (DASH-11). Server emits `{label, count}[]` keyed
+ * on the canonical ids (e.g. `quick_answer`, `completed`, `execution`);
+ * this component zips them against the UI's label+color metadata.
  */
 export function DistributionsRow() {
-  const { range } = useRange()
-  const [rows, setRows] = useState<SessionRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSessions()
-      .then((data) => {
-        if (!cancelled) setRows(data)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setRows([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, isLoading, error } = useDashboardData()
 
   const datasets = useMemo(() => {
-    if (rows == null) return null
-    const current = filterByRange(rows, range)
-
-    const ct = bucketByContentType(current)
-    const contentData: DonutDatum[] = CONTENT_TYPE_ORDER.map((k) => ({
-      key: k,
-      label: CONTENT_TYPE_LABELS[k],
-      value: ct[k],
-      color: CONTENT_TYPE_COLORS[k],
-    }))
-
-    const er = bucketByEndReason(current)
-    const endData: DonutDatum[] = END_REASON_ORDER.map((k) => ({
-      key: k,
-      label: END_REASON_LABELS[k],
-      value: er[k],
-      color: END_REASON_COLORS[k],
-    }))
-
-    const tc = bucketByToolCategory(current)
-    const toolData: DonutDatum[] = TOOL_CATEGORY_ORDER.map((k) => ({
-      key: k,
-      label: TOOL_CATEGORY_LABELS[k],
-      value: tc?.[k] ?? 0,
-      color: TOOL_CATEGORY_COLORS[k],
-    }))
-    const toolEmpty = tc == null
+    if (!data) return null
+    const contentData = zipDonut<ContentType>(
+      CONTENT_TYPE_ORDER,
+      CONTENT_TYPE_LABELS,
+      CONTENT_TYPE_COLORS,
+      data.distributions.content_type,
+    )
+    const endData = zipDonut<EndReasonBucket>(
+      END_REASON_ORDER,
+      END_REASON_LABELS,
+      END_REASON_COLORS,
+      data.distributions.end_reason,
+    )
+    const toolData = zipDonut<ToolCategoryBucket>(
+      TOOL_CATEGORY_ORDER,
+      TOOL_CATEGORY_LABELS,
+      TOOL_CATEGORY_COLORS,
+      data.distributions.tool_category,
+    )
+    const toolEmpty = toolData.every((d) => d.value === 0)
 
     return { contentData, endData, toolData, toolEmpty }
-  }, [rows, range])
+  }, [data])
 
   const gridClass = 'grid grid-cols-1 gap-3 md:grid-cols-3'
 
@@ -116,7 +101,7 @@ export function DistributionsRow() {
         Distributions
       </h2>
 
-      {datasets == null ? (
+      {isLoading || !datasets ? (
         <div className={gridClass}>
           <DonutSkeletonCard />
           <DonutSkeletonCard />
@@ -142,16 +127,14 @@ export function DistributionsRow() {
             data={datasets.toolData}
             centerLabel="calls"
             empty={datasets.toolEmpty}
-            emptyHint={
-              datasets.toolEmpty ? 'awaiting server aggregation' : undefined
-            }
+            emptyHint={datasets.toolEmpty ? 'no tool calls in range' : undefined}
           />
         </div>
       )}
 
       {error && (
         <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load sessions: {error}
+          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

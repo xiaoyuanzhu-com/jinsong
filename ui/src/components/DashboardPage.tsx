@@ -9,6 +9,7 @@ import { ToolPerformanceRow } from '@/components/ToolPerformanceRow'
 import { ActivityRow } from '@/components/ActivityRow'
 import { AgentModelRow } from '@/components/AgentModelRow'
 import { SessionTableRow } from '@/components/SessionTableRow'
+import { DashboardDataProvider } from '@/context/DashboardDataContext'
 
 /**
  * Main dashboard page (route `/`). Extracted from `App.tsx` in DASH-10 so
@@ -16,6 +17,14 @@ import { SessionTableRow } from '@/components/SessionTableRow'
  * tree re-rendering on navigation.
  */
 export function DashboardPage() {
+  return (
+    <DashboardDataProvider>
+      <DashboardPageInner />
+    </DashboardDataProvider>
+  )
+}
+
+function DashboardPageInner() {
   return (
     <DashboardShell>
       {/* DASH-3: hero KPI row — six summary cards with sparklines. */}
