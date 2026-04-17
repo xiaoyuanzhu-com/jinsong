@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { DemoChart } from '@/components/DemoChart'
+import { DashboardShell } from '@/components/DashboardShell'
+import { RangeProvider } from '@/context/RangeContext'
 
 function App() {
   // Dark mode default — mirror the existing Jinsong UI.
@@ -9,34 +11,31 @@ function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto max-w-5xl px-6 py-12">
-        <header className="flex items-baseline justify-between gap-4 mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Jinsong</h1>
-          <span className="text-sm text-muted-foreground">DASH-1 scaffold</span>
-        </header>
-
-        <div className="mb-8">
+    <RangeProvider>
+      <DashboardShell>
+        {/* DASH-1 demo chart stays as a placeholder until DASH-3 replaces
+            the hero row with real metrics. */}
+        <div className="mt-6 max-w-3xl">
           <DemoChart />
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-8 shadow-sm">
-          <h2 className="text-xl font-semibold mb-2">
+        <div className="mt-8 max-w-3xl rounded-lg border border-border bg-card p-8 shadow-sm">
+          <h2 className="mb-2 text-xl font-semibold">
             shadcn primitive smoke test
           </h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="mb-6 text-muted-foreground">
             Buttons from DASH-0 kept as a secondary smoke test alongside the
             Recharts + Card demo above.
           </p>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex flex-wrap gap-3">
             <Button>Primary</Button>
             <Button variant="secondary">Secondary</Button>
             <Button variant="outline">Outline</Button>
             <Button variant="ghost">Ghost</Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DashboardShell>
+    </RangeProvider>
   )
 }
 
