@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Premium Dashboard — Shipment Review · RM-2</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme" />
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --panel: #131418;
+    --border: #23252b;
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --dim: #3f3f46;
+    --sky: hsl(199 95% 74%);
+    --emerald: hsl(160 70% 55%);
+    --violet: hsl(263 75% 72%);
+    --amber: hsl(38 92% 65%);
+    --rose: hsl(350 85% 70%);
+    --good: #22c55e;
+    --fair: #eab308;
+    --poor: #ef4444;
+    --mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  html, body, .reveal { background: var(--bg); }
+  .reveal { color: var(--text); font-family: var(--sans); font-size: 26px; }
+  .reveal .slides { text-align: left; }
+  .reveal section { padding: 0 20px; }
+  .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+    color: var(--text); font-family: var(--sans); font-weight: 600;
+    text-transform: none; letter-spacing: -0.01em; margin: 0 0 0.4em 0;
+    text-shadow: none;
+  }
+  .reveal h1 { font-size: 2.4em; font-weight: 700; letter-spacing: -0.03em; }
+  .reveal h2 { font-size: 1.6em; color: var(--sky); font-weight: 600; }
+  .reveal h3 { font-size: 1.1em; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+  .reveal p { line-height: 1.55; color: var(--text); }
+  .reveal em { color: var(--sky); font-style: normal; }
+  .reveal strong { color: #fafafa; font-weight: 600; }
+  .reveal a { color: var(--sky); }
+  .reveal .mono, .reveal code { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .reveal code { background: #1b1d22; border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: var(--sky); }
+  .reveal ul { list-style: none; padding: 0; }
+  .reveal ul li { position: relative; padding-left: 1.2em; margin: 0.35em 0; color: var(--text); }
+  .reveal ul li::before { content: "›"; position: absolute; left: 0; color: var(--dim); }
+  .reveal .muted { color: var(--muted); }
+  .reveal .dim { color: var(--dim); }
+  .reveal .tag {
+    display: inline-block; padding: 2px 8px; border: 1px solid var(--border);
+    border-radius: 999px; font-family: var(--mono); font-size: 0.72em;
+    color: var(--muted); background: var(--panel); margin-right: 6px;
+  }
+  .reveal .tag.sky    { color: var(--sky);     border-color: rgba(125,211,252,0.3); }
+  .reveal .tag.emerald{ color: var(--emerald); border-color: rgba(52,211,153,0.3); }
+  .reveal .tag.violet { color: var(--violet);  border-color: rgba(167,139,250,0.3); }
+  .reveal .tag.amber  { color: var(--amber);   border-color: rgba(251,191,36,0.3); }
+  .reveal .tag.rose   { color: var(--rose);    border-color: rgba(251,113,133,0.3); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin: 20px 0; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .kpi .label { font-size: 0.6em; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px; }
+  .kpi .value { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 2em; font-weight: 700; color: #fafafa; line-height: 1; }
+  .kpi .unit { font-size: 0.5em; color: var(--muted); margin-left: 4px; font-weight: 400; }
+  .kpi.accent .value { color: var(--sky); }
+
+  .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 24px; margin-top: 18px; font-family: var(--mono); font-size: 0.72em; }
+  .check { padding: 6px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; color: var(--text); }
+  .check .id { color: var(--sky); margin-right: 8px; }
+  .check.audit .id { color: var(--emerald); }
+
+  .stack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; margin-top: 18px; }
+  .stack-row { display: flex; align-items: baseline; gap: 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .stack-name { font-family: var(--mono); color: var(--sky); font-size: 0.9em; min-width: 8em; }
+  .stack-why { color: var(--text); font-size: 0.82em; }
+
+  .tour-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px; }
+  .tour-cell { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .tour-cell h4 { color: var(--sky); font-family: var(--mono); font-size: 0.82em; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+  .tour-cell p { margin: 0; color: var(--muted); font-size: 0.78em; line-height: 1.45; }
+
+  .big-stat { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; font-size: 4em; line-height: 1; color: var(--sky); }
+  .big-stat .unit { font-size: 0.3em; color: var(--muted); margin-left: 6px; font-weight: 400; letter-spacing: 0; }
+  .stat-row { display: flex; gap: 40px; align-items: flex-end; margin-top: 20px; }
+  .stat-block { }
+  .stat-block .stat-label { font-size: 0.7em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+
+  .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
+  .finding-box { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--rose); border-radius: 6px; padding: 14px 18px; margin-top: 14px; }
+  .finding-box.good { border-left-color: var(--good); }
+  .finding-box .k { font-family: var(--mono); font-size: 0.8em; color: var(--muted); }
+  .finding-box .v { font-family: var(--mono); font-size: 1.4em; color: #fafafa; font-weight: 600; }
+
+  .quote { border-left: 3px solid var(--sky); padding: 6px 0 6px 20px; margin: 24px 0; color: var(--text); font-size: 1.1em; font-style: italic; }
+  .quote .attrib { display: block; font-style: normal; font-size: 0.7em; color: var(--muted); margin-top: 8px; letter-spacing: 0.05em; }
+
+  .footer-meta { position: absolute; bottom: 18px; left: 40px; right: 40px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.6em; color: var(--dim); letter-spacing: 0.08em; }
+
+  .stream { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
+  .stream h4 { font-family: var(--mono); color: var(--sky); font-size: 0.9em; margin: 0 0 8px 0; }
+  .stream.sig h4 { color: var(--emerald); }
+  .stream.qual h4 { color: var(--amber); }
+  .stream ul { margin: 0; }
+  .stream li { font-size: 0.78em; color: var(--text); }
+  .stream li::before { color: var(--dim); }
+
+  .reveal .progress { color: var(--sky); }
+  .reveal .controls { color: var(--muted); }
+
+  /* cold/cached bar chart */
+  .bars { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+  .bar-row { display: grid; grid-template-columns: 110px 1fr 100px; align-items: center; gap: 14px; }
+  .bar-label { font-family: var(--mono); color: var(--muted); font-size: 0.85em; }
+  .bar-track { background: #1b1d22; height: 26px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .bar-fill { height: 100%; display: flex; align-items: center; padding-left: 10px; color: #0a0a0b; font-family: var(--mono); font-size: 0.75em; font-weight: 600; }
+  .bar-value { font-family: var(--mono); color: #fafafa; font-size: 0.9em; font-weight: 600; text-align: right; }
+
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- 1. Title -->
+<section>
+  <div style="margin-top: 80px;">
+    <div class="muted mono" style="font-size: 0.7em; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 18px;">RM-2 · Executive Review</div>
+    <h1>Premium Dashboard<br /><span style="color: var(--sky);">Shipment Review</span></h1>
+    <p class="muted" style="margin-top: 28px; font-size: 0.9em;">A premium, information-rich dashboard for Jinsong — plus a signal-quality audit.</p>
+  </div>
+  <div class="footer-meta">
+    <span>2026-04-18 · Director</span>
+    <span>Jinsong · Agent Experience Metrics</span>
+  </div>
+</section>
+
+<!-- 2. The ask -->
+<section>
+  <h3>The Ask</h3>
+  <p style="margin-top: 18px; font-size: 1.1em;">Replace the hand-rolled dashboard with something worthy of the data — <em>dense, calm, premium</em>.</p>
+  <div class="quote">
+    "a dashboard with some big numbers, with some timeline charts, some pie charts, bar charts, heat map, ETC, use your best inspiration"
+    <span class="attrib">— BOSS, kickoff brief</span>
+  </div>
+  <p class="muted" style="font-size: 0.82em; margin-top: 20px;">Target aesthetic: Linear / Vercel / Grafana. One binary preserved — build happens in CI, user sees zero config.</p>
+</section>
+
+<!-- 3. What shipped -->
+<section>
+  <h3>What shipped</h3>
+  <h2 style="margin-top: 8px;">13 tasks · 2 audits · one cycle</h2>
+  <div class="check-grid">
+    <div class="check"><span class="id mono">DASH-0</span>Scaffold Vite + React + TS + Tailwind</div>
+    <div class="check"><span class="id mono">DASH-1</span>Recharts + chart primitives + tokens</div>
+    <div class="check"><span class="id mono">DASH-2</span>Shell + time-range filter state</div>
+    <div class="check"><span class="id mono">DASH-3</span>Hero KPI row with sparklines</div>
+    <div class="check"><span class="id mono">DASH-4</span>5-pillar health cards + donuts</div>
+    <div class="check"><span class="id mono">DASH-5</span>Timeline charts (×4)</div>
+    <div class="check"><span class="id mono">DASH-6</span>Distribution donuts (×3)</div>
+    <div class="check"><span class="id mono">DASH-7</span>Tool performance bars</div>
+    <div class="check"><span class="id mono">DASH-8</span>Activity heatmap (hour × dow)</div>
+    <div class="check"><span class="id mono">DASH-9</span>Agent / model breakdown bars</div>
+    <div class="check"><span class="id mono">DASH-10</span>Session detail · 35 metrics</div>
+    <div class="check"><span class="id mono">DASH-11</span><code>/api/aggregate</code> endpoint</div>
+    <div class="check"><span class="id mono">DASH-12</span>Visual polish pass</div>
+    <div class="check audit"><span class="id mono">SIG-1</span>Claude Code signal audit</div>
+    <div class="check audit"><span class="id mono">SIG-2</span>questions_asked heuristic doc</div>
+  </div>
+  <p class="muted" style="font-size: 0.78em; margin-top: 22px;">Shipped autonomously across the Execution Phase — one worktree, one lifecycle, every task pushed cleanly to <code>main</code>.</p>
+</section>
+
+<!-- 4. New stack -->
+<section>
+  <h3>Stack</h3>
+  <h2>Full React, zero config preserved.</h2>
+  <div class="stack-grid">
+    <div class="stack-row"><span class="stack-name">Vite</span><span class="stack-why">Fast dev + production bundle, HMR, zero boilerplate.</span></div>
+    <div class="stack-row"><span class="stack-name">React + TS</span><span class="stack-why">Type-safe UI at the ceiling shadcn targets.</span></div>
+    <div class="stack-row"><span class="stack-name">Tailwind v3</span><span class="stack-why">Cleanest shadcn compatibility; v4 deferred.</span></div>
+    <div class="stack-row"><span class="stack-name">shadcn/ui</span><span class="stack-why">new-york style, slate base, lucide icons.</span></div>
+    <div class="stack-row"><span class="stack-name">Recharts 3.8</span><span class="stack-why">React-idiomatic; shadcn theming baked in.</span></div>
+    <div class="stack-row"><span class="stack-name">react-router-dom</span><span class="stack-why">SPA routes: <code>/</code>, <code>/session/:id</code>.</span></div>
+  </div>
+  <p class="muted" style="font-size: 0.78em; margin-top: 22px;">Build runs in CI. Server serves <code>ui/dist/</code> with SPA fallback, path-traversal guard, immutable cache on hashed assets. One binary, no runtime dependencies.</p>
+</section>
+
+<!-- 5. Dashboard tour -->
+<section>
+  <h3>Dashboard tour</h3>
+  <h2 style="margin-bottom: 6px;">Top to bottom.</h2>
+  <div class="tour-grid">
+    <div class="tour-cell"><h4>Hero KPIs <span class="tag sky">×5</span></h4><p>Sessions · Tokens · Duration · Completion · Median TTFT. Big numbers, 30-bucket sparklines, delta vs prior period.</p></div>
+    <div class="tour-cell"><h4>Pillar Health <span class="tag emerald">×5</span></h4><p>Responsiveness · Reliability · Autonomy · Correctness · Completion. Donut + headline metric + trend arrow.</p></div>
+    <div class="tour-cell"><h4>Timelines <span class="tag violet">×4</span></h4><p>Sessions/day · Tokens/day (stacked) · TTFT trend (p50 + p95 bands) · Stall ratio trend.</p></div>
+    <div class="tour-cell"><h4>Distributions <span class="tag amber">×3</span></h4><p>Content type · End reason · Tool category. Three calm donuts, not a rainbow.</p></div>
+    <div class="tour-cell"><h4>Tool performance</h4><p>Top 10 by count · Success rate sorted ascending. Where the agent struggles is visible at a glance.</p></div>
+    <div class="tour-cell"><h4>Activity heatmap</h4><p>Hour-of-day × day-of-week. Custom SVG grid — Recharts ships no heatmap primitive.</p></div>
+    <div class="tour-cell"><h4>Agent / Model</h4><p>Sessions by agent · Sessions by model. Simple bars, tabular nums.</p></div>
+    <div class="tour-cell"><h4>Session drill-down</h4><p>Table → <code>/session/:id</code> → all <strong>35 metrics</strong> grouped by pillar.</p></div>
+  </div>
+</section>
+
+<!-- 6. Under the hood -->
+<section>
+  <h3>Under the hood · DASH-11</h3>
+  <h2><code>/api/aggregate?range=…</code></h2>
+  <p class="muted" style="font-size: 0.88em; max-width: 780px;">Server pre-aggregates everything the dashboard needs — hero KPIs, pillar scores, timelines, distributions, tool stats, heatmap, breakdowns. UI fetches once per range change.</p>
+  <div class="bars">
+    <div class="bar-row">
+      <span class="bar-label">cold</span>
+      <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--amber);">89.0 ms</div></div>
+      <span class="bar-value">1×</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">cached</span>
+      <div class="bar-track"><div class="bar-fill" style="width: 1.5%; background: var(--emerald); padding-left: 0;"></div></div>
+      <span class="bar-value">1.3 ms</span>
+    </div>
+  </div>
+  <div class="stat-row" style="margin-top: 36px;">
+    <div class="stat-block">
+      <div class="stat-label">Cache speedup</div>
+      <div class="big-stat">67<span class="unit">×</span></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Render path</div>
+      <div class="big-stat" style="font-size: 2.4em; color: var(--text);">1 fetch<span class="unit">per range</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. SIG-1 -->
+<section>
+  <h3>Signal quality audit · SIG-1</h3>
+  <h2 style="color: var(--rose);">The 57% finding.</h2>
+  <div class="two-col">
+    <div>
+      <p class="muted" style="font-size: 0.88em;">The Claude Code connector consumes the happy-path event shape only. It never reads <code>tool_result.is_error</code> — the canonical failure marker.</p>
+      <div class="finding-box">
+        <div class="k">sessions with silent tool failures</div>
+        <div class="v">444 / 776 &nbsp;<span class="muted" style="font-size: 0.7em;">57.2%</span></div>
+      </div>
+      <div class="finding-box">
+        <div class="k">api_error retry events silently dropped</div>
+        <div class="v">326 events · 62 sessions</div>
+      </div>
+      <div class="finding-box">
+        <div class="k">tool_call_end status distribution today</div>
+        <div class="v">success 29,226 · timeout 705 · <span style="color: var(--rose);">failure 0</span></div>
+      </div>
+    </div>
+    <div>
+      <p class="muted" style="font-size: 0.82em;"><strong style="color: var(--rose);">Consequence.</strong> <code>rel_error_rate</code>, <code>rel_hidden_retries</code>, <code>retry_count_total</code>, <code>errors_per_session</code> are uniformly zero across the corpus. <code>tool_success_rate = 1.0</code> reported for 444 sessions that actually contain 2,846 tool failures.</p>
+      <p class="muted" style="font-size: 0.82em; margin-top: 18px;"><strong style="color: var(--sky);">Fix scope.</strong> Small. Tracker already handles the events — bottleneck is purely extraction. Unlocks 6+ metrics with one connector change.</p>
+      <p class="mono" style="font-size: 0.78em; margin-top: 20px;"><span class="tag rose">next</span> rolls into RM-3 as SIG-3/4/5/6</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8. SIG-2 -->
+<section>
+  <h3>Signal quality audit · SIG-2</h3>
+  <h2 style="color: var(--emerald);">questions_asked: no change needed.</h2>
+  <p class="muted" style="font-size: 0.88em; max-width: 820px;">The heuristic: on <code>stop_reason === 'end_turn'</code> with no tool_use, if trimmed text ends with <code>?</code>, emit <code>user_input_requested</code>. Measured against 60 hand-inspected sessions (30 positive, 30 negative):</p>
+  <div class="stat-row" style="margin-top: 30px;">
+    <div class="stat-block">
+      <div class="stat-label">Precision</div>
+      <div class="big-stat" style="color: var(--emerald);">1.00<span class="unit">30 / 30</span></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Recall</div>
+      <div class="big-stat" style="color: var(--emerald);">0.97<span class="unit">30 / 31</span></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Decision</div>
+      <div class="big-stat" style="color: var(--text); font-size: 2.4em;">document-only<span class="unit">both ≥ 0.8 threshold</span></div>
+    </div>
+  </div>
+  <p class="muted" style="font-size: 0.78em; margin-top: 28px;">Known limits (locale, trailing punctuation, count inflation) captured for a future ticket. No code change in this commit.</p>
+</section>
+
+<!-- 9. What's next -->
+<section>
+  <h3>What's next · RM-3</h3>
+  <h2>Three streams, in parallel.</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 18px;">
+    <div class="stream">
+      <h4>CDX</h4>
+      <p class="muted" style="font-size: 0.74em; margin: 0 0 8px 0;">Codex connector.</p>
+      <ul>
+        <li>BOSS-provided sample sessions</li>
+        <li>Map to event contract</li>
+        <li>Unlock cross-agent comparisons</li>
+      </ul>
+    </div>
+    <div class="stream sig">
+      <h4>SIG</h4>
+      <p class="muted" style="font-size: 0.74em; margin: 0 0 8px 0;">Close the 57% gap.</p>
+      <ul>
+        <li>SIG-3: is_error → failure</li>
+        <li>SIG-4: api_error → retry</li>
+        <li>SIG-5: start-failure wiring</li>
+        <li>SIG-6: user-cancel strings</li>
+      </ul>
+    </div>
+    <div class="stream qual">
+      <h4>QUAL</h4>
+      <p class="muted" style="font-size: 0.74em; margin: 0 0 8px 0;">Ship quality.</p>
+      <ul>
+        <li>Test coverage on UI + aggregate</li>
+        <li>Bundle code-splitting (Recharts)</li>
+        <li>Error / empty / loading states audit</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted" style="font-size: 0.78em; margin-top: 22px;">All SIG-3 through SIG-6 are <span class="tag sky">S</span> — each &lt; half a day of connector code. Tracker already handles the event types.</p>
+</section>
+
+<!-- 10. Bundle + velocity -->
+<section>
+  <h3>By the numbers</h3>
+  <h2>Velocity &amp; footprint.</h2>
+  <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="kpi accent">
+      <div class="label">Tasks shipped</div>
+      <div class="value">13<span class="unit">DASH</span></div>
+    </div>
+    <div class="kpi accent">
+      <div class="label">Audits delivered</div>
+      <div class="value">2<span class="unit">SIG-1, SIG-2</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Metrics per session</div>
+      <div class="value">35<span class="unit">5 pillars</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Cache speedup</div>
+      <div class="value">67×<span class="unit">89 → 1.3 ms</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Bundle raw</div>
+      <div class="value">770<span class="unit">kB</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Bundle gzip</div>
+      <div class="value">213<span class="unit">kB</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Sessions in corpus</div>
+      <div class="value">776<span class="unit">2,618 JSONLs</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Binary count</div>
+      <div class="value">1<span class="unit">zero config</span></div>
+    </div>
+  </div>
+  <p class="muted" style="font-size: 0.82em; margin-top: 30px; text-align: center;">One autonomous Execution Phase · one worktree lifecycle per task · every push clean.</p>
+  <div class="footer-meta">
+    <span>Ready for RM-3 kickoff</span>
+    <span>Jinsong · 2026-04-18</span>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    controls: true,
+    progress: true,
+    slideNumber: 'c/t',
+    transition: 'fade',
+    backgroundTransition: 'fade',
+    width: 1280,
+    height: 800,
+    margin: 0.06,
+    minScale: 0.3,
+    maxScale: 1.6,
+  });
+</script>
+</body>
+</html>
