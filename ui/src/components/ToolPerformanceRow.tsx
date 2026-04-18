@@ -3,6 +3,8 @@ import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarListChart, type BarListDatum } from '@/components/BarListChart'
+import { SectionHeader } from '@/components/SectionHeader'
+import { ErrorCard } from '@/components/RowStates'
 import { useDashboardData } from '@/context/DashboardDataContext'
 import { colorForSuccessRate } from '@/lib/tool-stats'
 
@@ -12,7 +14,7 @@ const TOP_N = 10
 
 function BarListSkeletonCard() {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-32" />
       <Skeleton className="mt-1 h-3 w-40" />
       <div className="mt-4 space-y-2.5">
@@ -41,7 +43,7 @@ function BarListSkeletonCard() {
  *          >= 5 completed-or-pending calls in the active range.
  */
 export function ToolPerformanceRow() {
-  const { data, isLoading, error } = useDashboardData()
+  const { data, isLoading, error, retry } = useDashboardData()
 
   const datasets = useMemo(() => {
     if (!data) return null
@@ -63,11 +65,18 @@ export function ToolPerformanceRow() {
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
+  if (error && !isLoading && !data) {
+    return (
+      <section aria-label="Tool performance">
+        <SectionHeader title="Tool Performance" />
+        <ErrorCard message={error} onRetry={retry} />
+      </section>
+    )
+  }
+
   return (
     <section aria-label="Tool performance">
-      <h2 className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-        Tool performance
-      </h2>
+      <SectionHeader title="Tool Performance" />
 
       {isLoading || !datasets ? (
         <div className={gridClass}>
@@ -96,12 +105,6 @@ export function ToolPerformanceRow() {
             }}
             emptyLabel="Not enough data"
           />
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

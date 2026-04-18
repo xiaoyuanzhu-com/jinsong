@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCard, type Direction } from '@/components/KpiCard'
+import { ErrorCard } from '@/components/RowStates'
 import { useRange } from '@/context/RangeContext'
 import { useDashboardData } from '@/context/DashboardDataContext'
 import { rangeToDays } from '@/lib/range'
@@ -66,8 +67,10 @@ function pctDelta(current: number | null, prior: number | null): number | null {
 // ─── Loading skeleton ──────────────────────────────────────────────────────
 
 function SkeletonCard() {
+  // Heights match the final KpiCard so the grid doesn't reflow on load:
+  // 12px label · 32px value · 32px sparkline slot · 16px delta.
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-16" />
       <Skeleton className="mt-2 h-8 w-24" />
       <Skeleton className="mt-2 h-8 w-full" />
@@ -86,7 +89,7 @@ function SkeletonCard() {
  */
 export function HeroKpiRow() {
   const { range } = useRange()
-  const { data, isLoading, error } = useDashboardData()
+  const { data, isLoading, error, retry } = useDashboardData()
 
   const kpis = useMemo(() => {
     if (!data) return null
@@ -184,6 +187,15 @@ export function HeroKpiRow() {
 
   const gridClass = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6'
 
+  // Row-level error — replace the 6-card grid with a single Retry card.
+  if (error && !isLoading && !data) {
+    return (
+      <section aria-label="Key metrics">
+        <ErrorCard message={error} onRetry={retry} />
+      </section>
+    )
+  }
+
   // Loading state — 6 skeleton cards that preserve the row's layout footprint.
   if (isLoading || !data) {
     return (
@@ -222,11 +234,6 @@ export function HeroKpiRow() {
             deltaSuffix={deltaSuffix}
           />
         ))}
-        {error && (
-          <div className="col-span-full text-xs text-muted-foreground">
-            Failed to load dashboard data: {error}
-          </div>
-        )}
       </section>
     )
   }

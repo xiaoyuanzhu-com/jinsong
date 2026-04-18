@@ -3,6 +3,8 @@ import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DonutCard, type DonutDatum } from '@/components/DonutCard'
+import { SectionHeader } from '@/components/SectionHeader'
+import { ErrorCard } from '@/components/RowStates'
 import { useDashboardData } from '@/context/DashboardDataContext'
 import {
   CONTENT_TYPE_COLORS,
@@ -23,7 +25,7 @@ import {
 
 function DonutSkeletonCard() {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-32" />
       <Skeleton className="mt-1 h-3 w-20" />
       <div className="mt-3 flex items-center gap-4">
@@ -66,7 +68,7 @@ function zipDonut<K extends string>(
  * this component zips them against the UI's label+color metadata.
  */
 export function DistributionsRow() {
-  const { data, isLoading, error } = useDashboardData()
+  const { data, isLoading, error, retry } = useDashboardData()
 
   const datasets = useMemo(() => {
     if (!data) return null
@@ -95,11 +97,18 @@ export function DistributionsRow() {
 
   const gridClass = 'grid grid-cols-1 gap-3 md:grid-cols-3'
 
+  if (error && !isLoading && !data) {
+    return (
+      <section aria-label="Distributions">
+        <SectionHeader title="Distributions" />
+        <ErrorCard message={error} onRetry={retry} />
+      </section>
+    )
+  }
+
   return (
     <section aria-label="Distributions">
-      <h2 className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-        Distributions
-      </h2>
+      <SectionHeader title="Distributions" />
 
       {isLoading || !datasets ? (
         <div className={gridClass}>
@@ -129,12 +138,6 @@ export function DistributionsRow() {
             empty={datasets.toolEmpty}
             emptyHint={datasets.toolEmpty ? 'no tool calls in range' : undefined}
           />
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

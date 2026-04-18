@@ -95,4 +95,27 @@
     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
       Roboto, sans-serif;
   }
+
+  /* DASH-12: every number gets tabular-nums for steady column alignment
+     in axes, tables, and KPIs. Recharts tick `<text>` nodes inherit from
+     the SVG, so we target them explicitly. Prose text remains proportional. */
+  .tabular-nums,
+  table,
+  svg text {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* DASH-12: honour prefers-reduced-motion globally — kills the fade-in
+     and any other motion. Avoids 0ms on forwards-filled animations so
+     the "to" state still applies (opacity 1). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

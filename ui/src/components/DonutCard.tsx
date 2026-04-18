@@ -81,15 +81,15 @@ export function DonutCard({
   }, [data])
 
   return (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+    <Card className="p-5">
+      <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {title}
       </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">
+      <div className="mt-0.5 text-[11px] text-muted-foreground/80">
         {description}
       </div>
       {isEmptyRing && emptyHint && (
-        <div className="mt-0.5 text-[11px] text-muted-foreground/80">
+        <div className="mt-0.5 text-[11px] text-muted-foreground/60">
           {emptyHint}
         </div>
       )}
@@ -127,10 +127,10 @@ export function DonutCard({
           </ChartContainer>
           {/* Center overlay — total count + muted subtitle. */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-2xl font-semibold tabular-nums leading-none">
+            <div className="text-[20px] font-semibold tabular-nums leading-none">
               {isEmptyRing ? '—' : total.toLocaleString()}
             </div>
-            <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               {centerLabel}
             </div>
           </div>

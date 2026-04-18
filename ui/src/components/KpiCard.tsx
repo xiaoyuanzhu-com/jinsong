@@ -84,15 +84,15 @@ export function KpiCard({
     )
 
   return (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+    <Card className="p-5">
+      <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-3xl font-semibold tabular-nums leading-tight">
+      <div className="mt-1.5 text-[28px] font-semibold tabular-nums leading-none">
         {value}
       </div>
 
-      <div className="mt-2 h-8">
+      <div className="mt-3 h-8">
         {hasSparkline ? (
           <ChartContainer
             config={chartConfig}
@@ -127,7 +127,7 @@ export function KpiCard({
         )}
       </div>
 
-      <div className="mt-2 text-xs">
+      <div className="mt-3 text-[11px]">
         {deltaNode}
         {deltaPct != null && (
           <span className="ml-1 text-muted-foreground">{deltaSuffix}</span>

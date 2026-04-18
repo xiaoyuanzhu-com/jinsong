@@ -8,8 +8,9 @@ const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    // DASH-12: softer shadow + hairline border, consistent across the grid.
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow",
+      "rounded-xl border border-border/60 bg-card text-card-foreground shadow-[0_1px_0_0_hsl(var(--background)/.4),0_1px_3px_0_hsl(0_0%_0%/.2)]",
       className
     )}
     {...props}

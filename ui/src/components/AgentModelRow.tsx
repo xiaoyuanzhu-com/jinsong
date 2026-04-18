@@ -3,13 +3,15 @@ import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BarListChart, type BarListDatum } from '@/components/BarListChart'
+import { SectionHeader } from '@/components/SectionHeader'
+import { ErrorCard } from '@/components/RowStates'
 import { useDashboardData } from '@/context/DashboardDataContext'
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────
 
 function BarListSkeletonCard() {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-32" />
       <Skeleton className="mt-1 h-3 w-40" />
       <div className="mt-4 space-y-2.5">
@@ -36,7 +38,7 @@ function BarListSkeletonCard() {
  * top-10 per dimension by session count.
  */
 export function AgentModelRow() {
-  const { data, isLoading, error } = useDashboardData()
+  const { data, isLoading, error, retry } = useDashboardData()
 
   const datasets = useMemo(() => {
     if (!data) return null
@@ -53,11 +55,18 @@ export function AgentModelRow() {
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
+  if (error && !isLoading && !data) {
+    return (
+      <section aria-label="By agent and model">
+        <SectionHeader title="By Agent & Model" />
+        <ErrorCard message={error} onRetry={retry} />
+      </section>
+    )
+  }
+
   return (
     <section aria-label="By agent and model">
-      <h2 className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-        By Agent & Model
-      </h2>
+      <SectionHeader title="By Agent & Model" />
 
       {isLoading || !datasets ? (
         <div className={gridClass}>
@@ -82,12 +91,6 @@ export function AgentModelRow() {
             colorFor={() => 'hsl(var(--chart-2))'}
             emptyLabel="No sessions in this range"
           />
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

@@ -9,7 +9,7 @@ import { useDashboardData } from '@/context/DashboardDataContext'
 
 function HeatmapSkeletonCard() {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-20" />
       <Skeleton className="mt-1 h-3 w-56" />
       <Skeleton className="mt-3 h-[200px] w-full" />

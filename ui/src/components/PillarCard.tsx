@@ -95,11 +95,11 @@ export function PillarCard({ pillar, data }: PillarCardProps) {
   const isEmptyRing = total === 0
 
   return (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+    <Card className="p-5">
+      <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {pillar.name}
       </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">
+      <div className="mt-0.5 text-[11px] text-muted-foreground/80">
         {pillar.tagline}
       </div>
 
@@ -142,10 +142,10 @@ export function PillarCard({ pillar, data }: PillarCardProps) {
         </ChartContainer>
 
         <div className="min-w-0 flex-1">
-          <div className="text-2xl font-semibold tabular-nums leading-tight">
+          <div className="text-[24px] font-semibold tabular-nums leading-none">
             {headlineStr}
           </div>
-          <div className="mt-1 text-xs">
+          <div className="mt-1.5 text-[11px]">
             {deltaNode}
             {delta != null && (
               <span className="ml-1 text-muted-foreground">vs prev</span>
@@ -154,7 +154,7 @@ export function PillarCard({ pillar, data }: PillarCardProps) {
         </div>
       </div>
 
-      <div className="mt-3 text-[11px] text-muted-foreground tabular-nums">
+      <div className="mt-3 text-[11px] tabular-nums text-muted-foreground">
         {total === 0
           ? 'No classifiable sessions'
           : `${goodPct}% good · ${fairPct}% fair · ${poorPct}% poor`}

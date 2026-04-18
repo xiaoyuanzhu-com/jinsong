@@ -21,6 +21,8 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { TimelineChart } from '@/components/TimelineChart'
+import { SectionHeader } from '@/components/SectionHeader'
+import { ErrorCard } from '@/components/RowStates'
 import { useDashboardData } from '@/context/DashboardDataContext'
 import { abbreviateNumber, formatAxisDate } from '@/lib/timeline'
 
@@ -78,7 +80,12 @@ function SessionsChart({ data }: { data: SessionsDaily[] }) {
               <stop offset="100%" stopColor="var(--color-sessions)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.5}
+          />
           <XAxis {...xAxisProps()} />
           <YAxis
             tickLine={false}
@@ -127,7 +134,12 @@ function TokensChart({ data }: { data: TokensDaily[] }) {
               <stop offset="100%" stopColor="var(--color-out)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.5}
+          />
           <XAxis {...xAxisProps()} />
           <YAxis
             tickLine={false}
@@ -176,7 +188,12 @@ function TtftChart({ data }: { data: TtftDaily[] }) {
       data={data}
       renderChart={(d) => (
         <ComposedChart data={d} margin={commonMargin}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.5}
+          />
           <XAxis {...xAxisProps()} />
           <YAxis
             tickLine={false}
@@ -226,7 +243,12 @@ function StallChart({ data }: { data: StallDaily[] }) {
       data={data}
       renderChart={(d) => (
         <LineChart data={d} margin={commonMargin}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.5}
+          />
           <XAxis {...xAxisProps()} />
           <YAxis
             tickLine={false}
@@ -301,7 +323,7 @@ function StallChart({ data }: { data: StallDaily[] }) {
 
 function TrendsSkeletonCard() {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <Skeleton className="h-3 w-32" />
       <Skeleton className="mt-1 h-3 w-20" />
       <Skeleton className="mt-3 h-[220px] w-full" />
@@ -316,7 +338,7 @@ function TrendsSkeletonCard() {
  * Reads precomputed daily buckets from `/api/aggregate` (DASH-11).
  */
 export function TrendsRow() {
-  const { data, isLoading, error } = useDashboardData()
+  const { data, isLoading, error, retry } = useDashboardData()
 
   const datasets = useMemo(() => {
     if (!data) return null
@@ -339,11 +361,18 @@ export function TrendsRow() {
 
   const gridClass = 'grid grid-cols-1 gap-3 lg:grid-cols-2'
 
+  if (error && !isLoading && !data) {
+    return (
+      <section aria-label="Trends">
+        <SectionHeader title="Trends" />
+        <ErrorCard message={error} onRetry={retry} />
+      </section>
+    )
+  }
+
   return (
     <section aria-label="Trends">
-      <h2 className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-        Trends
-      </h2>
+      <SectionHeader title="Trends" />
 
       {isLoading || !datasets ? (
         <div className={gridClass}>
@@ -357,12 +386,6 @@ export function TrendsRow() {
           <TokensChart data={datasets.tokensDaily} />
           <TtftChart data={datasets.ttftDaily} />
           <StallChart data={datasets.stallDaily} />
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Failed to load dashboard data: {error}
         </div>
       )}
     </section>

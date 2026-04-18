@@ -93,16 +93,23 @@ export function BarListChart({
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="space-y-1 p-4 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <CardDescription className="text-xs">{description}</CardDescription>
+      <CardHeader className="space-y-0.5 p-5 pb-2">
+        <CardTitle className="text-[13px] font-semibold">{title}</CardTitle>
+        <CardDescription className="text-[11px] text-muted-foreground/80">
+          {description}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 p-4 pt-0">
+      <CardContent className="flex-1 p-5 pt-0">
         {data.length === 0 ? (
           <div
-            className="flex w-full items-center justify-center text-xs text-muted-foreground"
+            className="flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground"
             style={{ height }}
+            role="status"
           >
+            <span
+              aria-hidden="true"
+              className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/60"
+            />
             {emptyLabel}
           </div>
         ) : (

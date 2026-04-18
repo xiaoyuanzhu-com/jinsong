@@ -10,6 +10,9 @@
  *
  * We deliberately keep the RangeContext separate: the range selector
  * still owns the URL param, and the dashboard data provider subscribes.
+ *
+ * DASH-12: the context also exposes a `retry()` callback so row-level
+ * error cards can re-trigger the fetch without forcing a range change.
  */
 
 import { createContext, useContext, type ReactNode } from 'react'
@@ -21,6 +24,7 @@ interface DashboardDataValue {
   data: AggregateResponse | null
   isLoading: boolean
   error: string | null
+  retry: () => void
 }
 
 const DashboardDataContext = createContext<DashboardDataValue | undefined>(
