@@ -16,12 +16,20 @@ import { RangeProvider } from '@/context/RangeContext'
  *   - `/session/:id`     → per-session detail with all 35 metrics
  *
  * `RangeProvider` sits above the routes so both pages read the same
- * `?range=` URL param. Dark mode is applied once on mount to mirror the
- * pre-router behaviour.
+ * `?range=` URL param. Theme (DASH-13) mirrors the OS preference via
+ * `prefers-color-scheme` and updates live when the user flips their
+ * system setting.
  */
 function App() {
   useEffect(() => {
-    document.documentElement.classList.add('dark')
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (dark: boolean) => {
+      document.documentElement.classList.toggle('dark', dark)
+    }
+    apply(mql.matches)
+    const onChange = (e: MediaQueryListEvent) => apply(e.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
   }, [])
 
   return (

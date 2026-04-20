@@ -54,6 +54,10 @@ export default {
         good: 'hsl(var(--good))',
         fair: 'hsl(var(--fair))',
         poor: 'hsl(var(--poor))',
+        // DASH-13 bridge tokens — warm-cream / charcoal palette.
+        'panel-2': 'hsl(var(--panel-2))',
+        'text-dim': 'hsl(var(--text-dim))',
+        'accent-2': 'hsl(var(--accent-2))',
       },
       borderRadius: {
         lg: 'var(--radius)',

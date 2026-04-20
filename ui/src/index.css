@@ -4,84 +4,82 @@
 
 @layer base {
   :root {
-    /* shadcn "new-york" token set, tuned to the existing Jinsong dark palette
-       (--bg #0b0d10, --panel #14171c, --panel-2 #1b1f26, --border #262b33,
-        --text #e6e8eb, --muted #8b93a1, --accent #7dd3fc). Light mode kept as
-       a sensible slate default; the app renders in dark mode by default. */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* DASH-13: "bridge" direction, light mode.
+       Warm cream canvas, white panels, warm-grey supporting scale.
+       Sky-300 accent + amber secondary carry between light/dark. */
+    --background: 40 33% 95%;         /* #f7f4ee — bg */
+    --foreground: 48 10% 9%;          /* #1a1915 — text */
+    --card: 0 0% 100%;                /* #ffffff — panel */
+    --card-foreground: 48 10% 9%;
+    --popover: 42 43% 97%;            /* #fbf8f2 — panel-2 (warmer subpanel) */
+    --popover-foreground: 48 10% 9%;
+    --panel-2: 42 43% 97%;
+    --text-dim: 43 9% 33%;            /* #5a564c */
+    --muted: 42 43% 97%;
+    --muted-foreground: 42 8% 51%;    /* #8a8578 — caption/label text */
+    --primary: 199 95% 74%;           /* #7dd3fc sky-300 */
+    --primary-foreground: 48 10% 9%;
+    --secondary: 42 43% 97%;
+    --secondary-foreground: 48 10% 9%;
+    --accent: 42 43% 97%;
+    --accent-foreground: 48 10% 9%;
+    --accent-2: 38 92% 50%;           /* #f59e0b amber */
+    --destructive: 0 84% 60%;         /* #ef4444 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 39 17% 88%;             /* #e7e3da */
+    --input: 39 17% 88%;
+    --ring: 199 95% 74%;
     --radius: 0.5rem;
 
-    /* Chart palette (light) — shadcn chart primitives expect --chart-1..5.
-       Semantics: --chart-1 = primary data series (sessions, the hero metric);
-       --chart-2..5 = additional series, rotate in order when stacking.
-       Tuned a touch darker than dark-mode siblings so they read on white. */
-    --chart-1: 199 90% 48%;   /* sky */
-    --chart-2: 160 65% 40%;   /* emerald/teal */
-    --chart-3: 263 65% 55%;   /* violet */
-    --chart-4: 38 92% 50%;    /* amber */
-    --chart-5: 350 80% 55%;   /* rose */
+    /* Chart palette — bridge defaults carried from prior DASH rows. */
+    --chart-1: 199 90% 48%;
+    --chart-2: 160 65% 40%;
+    --chart-3: 263 65% 55%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 350 80% 55%;
 
-    /* Semantic threshold pills (match src/server/ui.ts):
-       --good = success/green, --fair = warning/amber, --poor = failure/red. */
-    --good: 142 71% 45%;      /* #22c55e */
-    --fair: 48 96% 53%;       /* #eab308 */
-    --poor: 0 84% 60%;        /* #ef4444 */
+    /* Semantic threshold pills (match src/server/ui.ts). */
+    --good: 142 71% 45%;
+    --fair: 48 96% 53%;
+    --poor: 0 84% 60%;
   }
 
   .dark {
-    /* Mapped from existing UI template: */
-    --background: 214 14% 5%;          /* #0b0d10 */
-    --foreground: 213 8% 91%;          /* #e6e8eb */
-    --card: 216 13% 10%;               /* #14171c (panel)  */
+    /* DASH-13: "bridge" direction, dark mode. Mirrors the Jinsong design
+       tokens (bg #0b0d10, panel #14171c, panel-2 #1b1f26, text #e6e8eb,
+       text-dim #a7adb8, muted-fg #7a828f, accent #7dd3fc, accent-2 #f59e0b). */
+    --background: 214 14% 5%;         /* #0b0d10 */
+    --foreground: 213 8% 91%;         /* #e6e8eb */
+    --card: 216 13% 10%;              /* #14171c */
     --card-foreground: 213 8% 91%;
-    --popover: 218 16% 13%;            /* #1b1f26 (panel-2) */
+    --popover: 218 16% 13%;           /* #1b1f26 */
     --popover-foreground: 213 8% 91%;
-    --primary: 199 95% 74%;            /* #7dd3fc (accent sky-300) */
-    --primary-foreground: 214 14% 8%;
-    --secondary: 218 16% 13%;          /* #1b1f26 */
+    --panel-2: 218 16% 13%;
+    --text-dim: 216 11% 69%;          /* #a7adb8 */
+    --muted: 218 16% 13%;
+    --muted-foreground: 216 8% 52%;   /* #7a828f */
+    --primary: 199 95% 74%;           /* #7dd3fc */
+    --primary-foreground: 214 14% 5%;
+    --secondary: 218 16% 13%;
     --secondary-foreground: 213 8% 91%;
-    --muted: 216 13% 10%;              /* #14171c */
-    --muted-foreground: 216 11% 59%;   /* #8b93a1 */
     --accent: 218 16% 13%;
     --accent-foreground: 213 8% 91%;
-    --destructive: 0 84% 60%;          /* #ef4444 */
+    --accent-2: 38 92% 50%;           /* #f59e0b */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 213 8% 91%;
-    --border: 218 15% 18%;             /* #262b33 */
+    --border: 218 15% 18%;            /* #262b33 */
     --input: 218 15% 18%;
-    --ring: 199 95% 74%;               /* sky-300 focus ring */
-    --radius: 0.5rem;
+    --ring: 199 95% 74%;
 
-    /* Chart palette (dark) — the primary theme for Jinsong.
-       --chart-1 matches --primary (sky-300) so the hero series visually
-       agrees with buttons/rings. */
-    --chart-1: 199 95% 74%;   /* sky-300 — primary data series */
-    --chart-2: 160 70% 55%;   /* emerald/teal */
-    --chart-3: 263 75% 72%;   /* violet */
-    --chart-4: 38 92% 65%;    /* amber */
-    --chart-5: 350 85% 70%;   /* rose */
+    --chart-1: 199 95% 74%;
+    --chart-2: 160 70% 55%;
+    --chart-3: 263 75% 72%;
+    --chart-4: 38 92% 65%;
+    --chart-5: 350 85% 70%;
 
-    /* Semantic threshold pills — re-declared for dark so they stay bright. */
-    --good: 142 71% 45%;      /* #22c55e */
-    --fair: 48 96% 53%;       /* #eab308 */
-    --poor: 0 84% 60%;        /* #ef4444 — error/failure states */
+    --good: 142 71% 45%;
+    --fair: 48 96% 53%;
+    --poor: 0 84% 60%;
   }
 }
 
@@ -94,6 +92,8 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
       Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
   }
 
   /* DASH-12: every number gets tabular-nums for steady column alignment
